@@ -1,0 +1,3 @@
+Skipping raw_chats/user.json: unexpected structure
+Malformed files recorded in parsed_chats/malformed.md
+Markdown files generated in parsed_chats
