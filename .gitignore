@@ -4,8 +4,9 @@ __pycache__/
 *$py.class
 
 #ChatGPT data
-\raw_chats
-\venv_gptbuddy
+/raw_chats
+/venv_gptbuddy
+/parsed_chats
 
 # C extensions
 *.so
