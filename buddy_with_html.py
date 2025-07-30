@@ -130,7 +130,7 @@ def parse_chats(inp, out_dir, n_clusters):
                         dt_obj = datetime.fromtimestamp(create_ts)
                     else:
                         dt_obj = datetime.fromtimestamp(f.stat().st_mtime)
-                    dt = dt_obj.strftime('%Y-%m-%d %H:%M:%S')
+                    dt = dt_obj.strftime('%Y-%m-%d')
                     uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
                     bn = f"{dt} - {uq}"
                     text = ' '.join(m.get('content','') for m in msgs)
@@ -152,7 +152,7 @@ def parse_chats(inp, out_dir, n_clusters):
                     dt_obj = datetime.fromtimestamp(create_ts)
                 else:
                     dt_obj = datetime.fromtimestamp(f.stat().st_mtime)
-                dt = dt_obj.strftime('%Y-%m-%d %H:%M:%S')
+                dt = dt_obj.strftime('%Y-%m-%d')
                 uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
                 bn = f"{dt} - {uq}"
                 text = ' '.join(m.get('content','') for m in msgs)
@@ -175,7 +175,7 @@ def parse_chats(inp, out_dir, n_clusters):
                 dt_obj = datetime.fromtimestamp(data['create_time'])
             else:
                 dt_obj = datetime.fromtimestamp(f.stat().st_mtime)
-            dt = dt_obj.strftime('%Y-%m-%d %H:%M:%S')
+            dt = dt_obj.strftime('%Y-%m-%d')
             uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
             bn = f"{dt} - {uq}"
             text = ' '.join(m.get('content','') for m in msgs)
