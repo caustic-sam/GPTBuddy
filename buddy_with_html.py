@@ -1,50 +1,37 @@
 """
-Chat Organizer MVP with Named Files by Date & Initial Question
+Chat Organizer Full Script
 
-Parses OpenAI JSON chat exports into per-conversation Markdown named as `YY-MM-DD - Initial Question`, extracts top-5 keywords, and clusters chats.
-
-Features:
-- Accepts `--input_path` (JSON file, ZIP, or directory) and `--output_dir`
-- Splits mapping-exports, dict-of-convs, list-of-convs into individual chats
-- Names each Markdown file using the conversation’s first user message and file modification date: `yy-mm-dd - question.md`
-- Extracts top-5 TF-IDF keywords per chat
-- Clusters chats by TF-IDF of full transcripts (`--clusters N`)
-- Generates `clusters_index.md`, `index.md`, and `malformed.md`
-
-Dependencies:
-  pip install ijson scikit-learn numpy
+Parses OpenAI JSON chat exports (file/ZIP/directory) into per-conversation Markdown,
+extracts top-5 keywords, clusters chats, and generates both Markdown and HTML indices.
 
 Usage:
-  python chat_organizer.py \
+  python chat_organizer_full.py \
     --input_path ./export.zip \
     --output_dir ./parsed_chats \
     [--clusters 5]
+
+Dependencies:
+  pip install ijson scikit-learn numpy
 """
 import argparse
 import json
 import zipfile
 import tempfile
-from pathlib import Path
 import re
+from pathlib import Path
+from datetime import datetime
 import ijson
 import numpy as np
-from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
-# Helper to sanitize filenames
-# Helper to sanitize and truncate filenames
 # Helper to sanitize and truncate filenames
 def sanitize_filename(s):
     """Clean and truncate filenames to a safe length"""
-    # Replace newline characters with spaces and strip whitespace
-    s = s.replace("", " ").strip()
-    # Remove invalid filesystem characters
-    s = re.sub(r'[\/:*?"<>|]+', '', s)
-    # Truncate to avoid filesystem limits
-    max_len = 50
-    if len(s) > max_len:
-        s = s[:max_len].rstrip() + "..."
+    s = s.replace("\n", " ").strip()
+    s = re.sub(r'[\\/:*?"<>|]+', '', s)
+    if len(s) > 50:
+        s = s[:50].rstrip() + "..."
     return s
 
 # Extract messages from mapping exports
@@ -57,38 +44,38 @@ def extract_from_mapping(conv):
         md = node.get('message')
         if md:
             for part in md.get('content', {}).get('parts', []) or []:
-                if isinstance(part,str) and part.strip():
+                if isinstance(part, str) and part.strip():
                     msgs.append({'role': md.get('author',{}).get('role','unknown'), 'content': part})
         for cid in node.get('children', []) or []:
             dfs(cid)
-    for r in roots: dfs(r)
+    for r in roots:
+        dfs(r)
     return msgs
 
-# Extract messages for all formats
+# Extract messages for various formats
 def extract_messages(data):
     if isinstance(data, dict) and 'messages' in data:
         return data['messages']
     if isinstance(data, list) and data and isinstance(data[0], dict) and 'role' in data[0] and 'content' in data[0]:
         return data
     if isinstance(data, list) and data and isinstance(data[0], dict) and 'mapping' in data[0]:
-        out = []
+        msgs = []
         for conv in data:
-            out.extend(extract_from_mapping(conv))
-        return out
+            msgs.extend(extract_from_mapping(conv))
+        return msgs
     if isinstance(data, dict) and not isinstance(data.get('messages'), list):
-        out = []
+        msgs = []
         for v in data.values():
             if isinstance(v, dict):
                 if 'mapping' in v:
-                    out.extend(extract_from_mapping(v))
+                    msgs.extend(extract_from_mapping(v))
                 elif 'messages' in v:
-                    out.extend(v['messages'])
-        return out
+                    msgs.extend(v['messages'])
+        return msgs
     return []
 
-# Top-5 TF-IDF keywords
+# Compute top-N TF-IDF keywords
 def extract_keywords_for_messages(msgs, top_n=5):
-    """Compute top-N TF-IDF keywords, returning empty list on failure"""
     texts = [m.get('content','') for m in msgs]
     if not texts:
         return []
@@ -96,57 +83,55 @@ def extract_keywords_for_messages(msgs, top_n=5):
     try:
         X = vectorizer.fit_transform(texts)
     except ValueError:
-        # all content was stopwords or empty
         return []
     sums = np.array(X.sum(axis=0)).ravel()
     terms = vectorizer.get_feature_names_out()
     top_idxs = sums.argsort()[::-1][:top_n]
     return [terms[i] for i in top_idxs]
 
-# Write Markdown file with given filename base
+# Write Markdown file for a chat
 def write_md_file(msgs, base_name, out_dir):
-    fn_safe = sanitize_filename(base_name) + '.md'
-    path = out_dir / fn_safe
+    fn = sanitize_filename(base_name) + '.md'
+    path = out_dir / fn
     lines = [f"# Chat: {base_name}", ""]
-    # Keywords
     kw = extract_keywords_for_messages(msgs)
     if kw:
         lines.append(f"**Top Keywords:** {', '.join(kw)}")
         lines.append("")
-    # Messages
     for m in msgs:
         c = m.get('content','').strip()
         if not c: continue
         lines.append(f"## {m.get('role','unknown')}\n{c}\n")
     path.write_text("\n".join(lines), encoding='utf-8')
-    return fn_safe, len(msgs)
+    return fn, len(msgs)
 
 # Cluster chat texts
 def cluster_chats(chat_texts, n_clusters):
-    vect = TfidfVectorizer(stop_words='english', max_features=5000)
-    X = vect.fit_transform(chat_texts)
+    vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
+    X = vectorizer.fit_transform(chat_texts)
     km = KMeans(n_clusters=n_clusters, random_state=42)
     return km.fit_predict(X)
 
-# Main processing
+# Main orchestration
 def parse_chats(inp, out_dir, n_clusters):
     p = Path(inp)
-    # Unzip
-    if p.is_file() and p.suffix.lower()=='.zip':
-        td = tempfile.TemporaryDirectory()
-        print(f"Extracting zip to {td.name}")
+    # Unzip if archive
+    if p.is_file() and p.suffix.lower() == '.zip':
+        tmp = tempfile.TemporaryDirectory()
+        print(f"Extracting ZIP to {tmp.name}")
         with zipfile.ZipFile(p,'r') as zf:
-            zf.extractall(td.name)
-        base = Path(td.name)
+            zf.extractall(tmp.name)
+        base = Path(tmp.name)
     else:
         base = p
-    # Dive into conversations/
+    # Dive into conversations/ subfolder
     sub = base / 'conversations'
-    if sub.is_dir(): base = sub
+    if sub.is_dir():
+        print(f"Using folder: {sub}")
+        base = sub
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
 
-    records = []  # tuples of (base_name, msgs, text)
-
+    records = []  # (base_name, msgs, text)
     for f in base.rglob('*.json'):
         if '__MACOSX' in f.as_posix() or f.name.startswith('._'): continue
         rel = f.relative_to(base).as_posix()
@@ -156,20 +141,18 @@ def parse_chats(inp, out_dir, n_clusters):
         except Exception as e:
             print(f"Skipping {rel}: {e}")
             continue
-        # Handle mapping lists
+        # List-of-mapping exports
         if isinstance(data, list) and data and isinstance(data[0], dict) and 'mapping' in data[0]:
             for idx_conv, conv in enumerate(data):
                 msgs = extract_from_mapping(conv)
                 if msgs:
-                    # get date
                     dt = datetime.fromtimestamp(f.stat().st_mtime).strftime('%y-%m-%d')
-                    # first user question
                     uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
-                    base_name = f"{dt} - {uq}"
+                    bn = f"{dt} - {uq}"
                     text = ' '.join(m.get('content','') for m in msgs)
-                    records.append((base_name, msgs, text))
+                    records.append((bn, msgs, text))
             continue
-        # Dict-of-convs
+        # Dict-of-convs exports
         if isinstance(data, dict) and not isinstance(data.get('messages'), list) and any(
             isinstance(v, dict) and ('mapping' in v or 'messages' in v) for v in data.values()
         ):
@@ -178,57 +161,91 @@ def parse_chats(inp, out_dir, n_clusters):
                 if msgs:
                     dt = datetime.fromtimestamp(f.stat().st_mtime).strftime('%y-%m-%d')
                     uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
-                    base_name = f"{dt} - {uq}"
+                    bn = f"{dt} - {uq}"
                     text = ' '.join(m.get('content','') for m in msgs)
-                    records.append((base_name, msgs, text))
+                    records.append((bn, msgs, text))
             continue
         # Single chat
-        msgs = extract_from_mapping(data) if isinstance(data, dict) and 'mapping' in data else data.get('messages') if isinstance(data, dict) else data if isinstance(data,list) else []
+        if isinstance(data, dict) and 'mapping' in data:
+            msgs = extract_from_mapping(data)
+        elif isinstance(data, dict) and 'messages' in data:
+            msgs = data['messages']
+        elif isinstance(data, list):
+            msgs = data
+        else:
+            msgs = []
         if msgs:
             dt = datetime.fromtimestamp(f.stat().st_mtime).strftime('%y-%m-%d')
             uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
-            base_name = f"{dt}-{uq}"
+            bn = f"{dt} - {uq}"
             text = ' '.join(m.get('content','') for m in msgs)
-            records.append((base_name, msgs, text))
+            records.append((bn, msgs, text))
 
-    # Write Markdown and collect index
+    # Write Markdown and gather texts
     index = []
     chat_texts = []
-    for base_name, msgs, text in records:
-        fn, cnt = write_md_file(msgs, base_name, out)
-        index.append((base_name, fn, cnt))
+    for bn, msgs, text in records:
+        fn, cnt = write_md_file(msgs, bn, out)
+        index.append((bn, fn, cnt))
         chat_texts.append(text)
 
-    # Clustering
+    # Cluster chats
     labels = [0]*len(records)
-    if n_clusters and len(records)>=n_clusters:
+    if n_clusters and len(records) >= n_clusters:
         print(f"Clustering {len(records)} chats into {n_clusters} clusters...")
         labels = cluster_chats(chat_texts, n_clusters)
 
-    # clusters_index.md
+    # Write clusters_index.md
     clusters = {}
-    for (base_name, fn, cnt), lab in zip(index, labels):
-        clusters.setdefault(lab, []).append((base_name, fn, cnt))
-    lines = ['# Clusters Index','']
+    for (bn, fn, cnt), lab in zip(index, labels):
+        clusters.setdefault(lab, []).append((bn, fn, cnt))
+    clines = ['# Clusters Index', '']
     for lab, items in clusters.items():
-        lines.append(f'## Cluster {lab}')
-        for bn,fn,c in items:
-            lines.append(f"- [{bn} ({c} msgs)]({fn})")
-        lines.append('')
-    (out/'clusters_index.md').write_text("\n".join(lines), encoding='utf-8')
+        clines.append(f'## Cluster {lab}')
+        for bn, fn, cnt in items:
+            clines.append(f"- [{bn} ({cnt} msgs)]({fn})")
+        clines.append('')
+    (out/'clusters_index.md').write_text("\n".join(clines), encoding='utf-8')
 
-    # index.md
-    lines = ['# Chat Index','']
-    for bn,fn,c in index:
-        lines.append(f"- [{bn} ({c} msgs)]({fn})")
-    (out/'index.md').write_text("\n".join(lines), encoding='utf-8')
+    # Write index.md
+    ilines = ['# Chat Index', '']
+    for bn, fn, cnt in index:
+        ilines.append(f"- [{bn} ({cnt} msgs)]({fn})")
+    (out/'index.md').write_text("\n".join(ilines), encoding='utf-8')
 
-    print(f"Done: {len(records)} chats; clusters_index.md created.")
+    # Write HTML overview
+    html = [
+        '<!DOCTYPE html>',
+        '<html><head><meta charset="utf-8"><title>Chat Index</title></head><body>',
+        '<h1>Chat Index</h1>',
+        '<table border="1" cellpadding="5">',
+        '<tr><th>Date</th><th>Title</th><th>Keywords</th><th>Messages</th><th>Cluster</th></tr>'
+    ]
+    for (bn, fn, cnt), lab, (r_bn, r_msgs, _) in zip(index, labels, records):
+        if ' - ' in bn:
+            date, title = bn.split(' - ', 1)
+        else:
+            date, title = '', bn
+        kws = extract_keywords_for_messages(r_msgs)
+        html.append(
+            f"<tr><td>{date}</td>"
+            f"<td><a href='{fn}'>{sanitize_filename(title)}</a></td>"
+            f"<td>{', '.join(kws)}</td>"
+            f"<td>{cnt}</td>"
+            f"<td>{lab}</td></tr>"
+        )
+    html.extend(['</table>', '</body></html>'])
+    (out/'index.html').write_text("\n".join(html), encoding='utf-8')
+
+    print(f"Done: {len(records)} chats; indices generated.")
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description='Chat Organizer with Named Files')
-    p.add_argument('--input_path','--input_dir',dest='inp',required=True)
-    p.add_argument('--output_dir',required=True)
-    p.add_argument('--clusters',type=int,default=5)
-    a=p.parse_args()
-    parse_chats(a.inp,a.output_dir,a.clusters)
+    parser = argparse.ArgumentParser(description='Chat Organizer Full')
+    parser.add_argument('--input_path','--input_dir',dest='inp',required=True,
+                        help='Path to JSON file, ZIP, or directory')
+    parser.add_argument('--output_dir', required=True,
+                        help='Directory for Markdown/HTML output')
+    parser.add_argument('--clusters', type=int, default=5,
+                        help='Number of clusters')
+    args = parser.parse_args()
+    parse_chats(args.inp, args.output_dir, args.clusters)
