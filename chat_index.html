@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ChatBuddy – Chat Index</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* A few quick overrides to fit the chat table into the template */
+    .chat-index-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5em 0;
+    }
+    .chat-index-table th,
+    .chat-index-table td {
+      padding: 0.75em;
+      border: 1px solid #ddd;
+    }
+    .chat-index-table th {
+      background: #4a4f6d; 
+      color: #fff;
+      text-align: left;
+    }
+    .chat-index-table tr:nth-child(even) {
+      background: #f7f7f7;
+    }
+    /* main {
+      max-width: 1000px;
+      margin: 2em auto;
+      padding: 0 1em;
+    } */
+
+    /* page background */
+    body {
+      background-color: #f0f2f5;
+    }
+
+    /* card-like container for content */
+    main {
+      background-color: #ffffff;
+      padding: 1.5em;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 1000px;
+      margin: 2em auto;
+    }
+
+    /* darken table links for readability */
+    .chat-index-table a {
+      color: #333333;
+      text-decoration: none;
+    }
+    .chat-index-table a:hover {
+      color: #000000;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Simple header using your Bado-Blog CSS classes -->
+  <header class="badoblog-css-site-branding">
+    <div class="badoblog-css-site-brand-top">
+      <div class="badoblog-css-site-logo-box">
+        <!-- swap in your ChatBuddy logo if you have one -->
+        <img src="img/logo.png" alt="ChatBuddy Logo" style="height:3em;">
+      </div>
+      <div class="badoblog-css-site-title-box">
+        <h1 class="badoblog-css-site-title">ChatBuddy</h1>
+        <p class="badoblog-css-site-description">Your ChatGPT export, neatly indexed</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h2>Chat Index</h2>
+
+    <!-- Replace this table’s <tbody> with the rows from your generated index.html -->
+    <table class="chat-index-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Title / First User Message</th>
+          <th>Keywords</th>
+          <th>Msgs</th>
+          <th>Cluster</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!--
+          Example row—your script already emits something like this:
+        -->
+   <tr><th>Date</th><th>Title</th><th>Keywords</th><th>Messages</th><th>Cluster</th></tr>
+<tr><td>2025-07-29</td><td><a href='2025-07-29 - write me a tool that will take my dow....md'>write me a tool that will take my downloaded Chats...</a></td><td>textdoc_id, 68894c55ba388191b1339957767217d1, successfully, updated, document</td><td>58</td><td>2</td></tr>
+<tr><td>2025-07-29</td><td><a href='2025-07-29 - I want a FULL DOSSIER ON THE COMPANY....md'>I want a FULL DOSSIER ON THE COMPANY PERSONA WHO T...</a></td><td>persona, verification, identity, like, ll</td><td>6</td><td>4</td></tr>
+<tr><td>2025-07-29</td><td><a href='2025-07-29 - What are the laws in the state of Tex....md'>What are the laws in the state of Texas for doctor...</a></td><td>pain, texas, prescribing, medication, controlled</td><td>2</td><td>0</td></tr>
+<tr><td>2025-07-28</td><td><a href='2025-07-28 - Now that we’re running on gcp with a....md'>Now that we’re running on gcp with a framework sit...</a></td><td>php, site, config, wp, design</td><td>4</td><td>2</td></tr>
+<tr><td>2025-07-28</td><td><a href='2025-07-28 - Does one mine ether.md'>Does one mine ether</a></td><td>does, ether, eth, ethereum, staking</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-26</td><td><a href='2025-07-26 - I need the fix to prevent my dev site....md'>I need the fix to prevent my dev site from redir4e...</a></td><td>malsicario, bash, http, www, docker</td><td>154</td><td>2</td></tr>
+<tr><td>2025-07-26</td><td><a href='2025-07-26 - Is there a Jewish in garland Texas.md'>Is there a Jewish in garland Texas</a></td><td>jewish, deli, garland, texas, kosher</td><td>4</td><td>0</td></tr>
+<tr><td>2025-07-24</td><td><a href='2025-07-24 - Ok.  Good evening.  I need some late....md'>Ok.  Good evening.  I need some late night researc...</a></td><td>converted, set, context, updated, model</td><td>18</td><td>4</td></tr>
+<tr><td>2025-07-26</td><td><a href='2025-07-26 - Help!  I’ve just been draft to “coach....md'>Help!  I’ve just been draft to “coach” Zack’s  soc...</a></td><td>team, kids, game, ll, coach</td><td>6</td><td>1</td></tr>
+<tr><td>2025-07-24</td><td><a href='2025-07-24 - GOOGLE CLOUD  Ok.  We're now going to....md'>GOOGLE CLOUD  Ok.  We're now going to deploy to go...</a></td><td>ssh, 34, jm, bash, gcloud</td><td>52</td><td>2</td></tr>
+<tr><td>2025-07-25</td><td><a href='2025-07-25 - walk me through me creating a tmux se....md'>walk me through me creating a tmux session of my g...</a></td><td>redacted, 34, gcp, tmux, code</td><td>8</td><td>2</td></tr>
+<tr><td>2025-07-25</td><td><a href='2025-07-25 - walk me through me creating a tmux se....md'>walk me through me creating a tmux session of my g...</a></td><td>tmux, session, set, model, context</td><td>4</td><td>2</td></tr>
+<tr><td>2025-07-24</td><td><a href='2025-07-24 - Back online.  We;'re starting from a....md'>Back online.  We;'re starting from a freshly creat...</a></td><td>malsicario, docker, 8080, com, wordpress</td><td>60</td><td>2</td></tr>
+<tr><td>2025-07-24</td><td><a href='2025-07-24 - ok.  one step at a time.  write me a....md'>ok.  one step at a time.  write me a one-liner tha...</a></td><td>malsicario, db, docker, compose, mariadb</td><td>109</td><td>2</td></tr>
+<tr><td>2025-07-24</td><td><a href='2025-07-24 - good 'morrow!   do you remember where....md'>good 'morrow!   do you remember where we left off...</a></td><td>report, malsicario, interesting, docker, execute</td><td>12</td><td>2</td></tr>
+<tr><td>2025-07-24</td><td><a href='2025-07-24 - research the upcoming texas stock exc....md'>research the upcoming texas stock exchange and usi...</a></td><td>file, file_id, kdobp4yqukgteaqnwikjzt, poiacwr4ppq2gm4ce9v21n, research</td><td>7</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - I have brought yup my mac203 Debian....md'>I have brought yup my mac203 Debian  server in the...</a></td><td>docker, bash, malsicario, echo, 80</td><td>132</td><td>2</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - How do I find the location of my dock....md'>How do I find the location of my docker contqainer...</a></td><td>docker, 80, bash, container, http</td><td>16</td><td>2</td></tr>
+<tr><td>2025-07-23</td><td><a href='2025-07-23 - build me a scene from. the following....md'>build me a scene from. the following conversation...</a></td><td>pdf, download, email, like, ll</td><td>33</td><td>1</td></tr>
+<tr><td>2025-07-23</td><td><a href='2025-07-23 - draw me a picture of(cartoonish or an....md'>draw me a picture of(cartoonish or anime) that wou...</a></td><td>docker, end, turn, say, compose</td><td>6</td><td>1</td></tr>
+<tr><td>2025-07-23</td><td><a href='2025-07-23 - cirtis yarwin.md'>cirtis yarwin</a></td><td>yarwin, cirtis, yarvin, cite, political</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - Time Machine and Digital Modern Media....md'>Time Machine and Digital Modern Media Catalogue (w...</a></td><td>pdf, like, absolutely, project, sandbox</td><td>15</td><td>2</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - tools for managing wordpress media li....md'>tools for managing wordpress media library</a></td><td>media, data, stripe, library, deeply</td><td>6</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - substack.md'>substack</a></td><td>substack, creators, content, platform, cite</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - urbit.md'>urbit</a></td><td>urbit, cite, network, personal, digital</td><td>2</td><td>4</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - cirtis yarwin.md'>cirtis yarwin</a></td><td>cirtis, yarwin, yarvin, cite, turn0search0</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - How do I become a ENS registrar.md'>How do I become a ENS registrar</a></td><td>ens, registrar, https, eth, domains</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - web3 ethereum game.md'>web3 ethereum game</a></td><td>ethereum, game, web3, cite, games</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - web3 ethereum game.md'>web3 ethereum game</a></td><td>ethereum, town, game, web3, aren</td><td>8</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - web3.0 ganmes.md'>web3.0 ganmes</a></td><td>web3, ganmes, games, game, players</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - web3.0 ganmes.md'>web3.0 ganmes</a></td><td>web3, ganmes, game, games, players</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-22</td><td><a href='2025-07-22 - web3.0 ganes.md'>web3.0 ganes</a></td><td>ganes, web3, cite, players, games</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - Help start my Mac in repair mode.md'>Help start my Mac in repair mode</a></td><td>mac, repair, help, start, mode</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - rimbaud season in hell.md'>rimbaud season in hell</a></td><td>rimbaud, hell, season, verlaine, work</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - dev.malsicario.com 8080.md'>dev.malsicario.com 8080</a></td><td>8080, malsicario, dev, com, specific</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - how do sign up for OERSONL ETHEREIHM....md'>how do sign up for OERSONL ETHEREIHM ADDRESS</a></td><td>ens, figma, dns, cite, let</td><td>28</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - dns inforhraphoc.md'>dns inforhraphoc</a></td><td>dns, inforhraphoc, infographic, domain, icann</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - what is the best way for be to create....md'>what is the best way for be to create a ticker tap...</a></td><td>ticker, best, create, plugin, theme</td><td>6</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - Do remember creating for me a soviet....md'>Do remember creating for me a soviet style renditi...</a></td><td>turn, end, say, style, poster</td><td>17</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - Wat is the state of digital identity....md'>Wat is the state of digital identity around the wo...</a></td><td>digital, identity, consensus, app, https</td><td>22</td><td>4</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - In the style of the attached image I....md'>In the style of the attached image I need 5 logo r...</a></td><td>world, representing, style, end, turn</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - In the style of the first attached im....md'>In the style of the first attached image, the styl...</a></td><td>images, download, user, flag, denim</td><td>62</td><td>3</td></tr>
+<tr><td>2025-07-21</td><td><a href='2025-07-21 - Now that I have a stable base customi....md'>Now that I have a stable base customized Wordpress...</a></td><td>backup, wp, teat, restore, let</td><td>4</td><td>2</td></tr>
+<tr><td>2025-07-18</td><td><a href='2025-07-18 - DEPLOYING MALSICARIO UAT   Ok.  What....md'>DEPLOYING MALSICARIO UAT   Ok.  What is the easies...</a></td><td>php, nginx, malsicario, wp, wordpress</td><td>116</td><td>2</td></tr>
+<tr><td>2025-07-20</td><td><a href='2025-07-20 - Does this script take Into account th....md'>Does this script take Into account that I am runni...</a></td><td>mariadb, sudo, venv, mysql, bash</td><td>54</td><td>2</td></tr>
+<tr><td>2025-07-20</td><td><a href='2025-07-20 - Tell me what each of these services d....md'>Tell me what each of these services do and whether...</a></td><td>enabled, service, php, unit, enable</td><td>4</td><td>2</td></tr>
+<tr><td>2025-07-18</td><td><a href='2025-07-18 - there is one page on my old dev site....md'>there is one page on my old dev site that did come...</a></td><td>wp, content, www, theme, bash</td><td>48</td><td>2</td></tr>
+<tr><td>2025-07-07</td><td><a href='2025-07-07 - We are ready to proceed with NIST_LLM....md'>We are ready to proceed with NIST_LLM   If you lik...</a></td><td>hugo, theme, css, papermod, toml</td><td>133</td><td>2</td></tr>
+<tr><td>2025-02-17</td><td><a href='2025-02-17 - I have I late 2013 iMac that I want t....md'>I have I late 2013 iMac that I want to reimage to...</a></td><td>cnn, py, site, script, articles</td><td>71</td><td>2</td></tr>
+<tr><td>2025-04-17</td><td><a href='2025-04-17 - what is the best way to procure digit....md'>what is the best way to procure digital copies of...</a></td><td>papers, news, https, newspapers, www</td><td>12</td><td>1</td></tr>
+<tr><td>2025-07-18</td><td><a href='2025-07-18 - What was the largest high school grad....md'>What was the largest high school graduating class...</a></td><td>class, high, school, plano, highest</td><td>12</td><td>1</td></tr>
+<tr><td>2025-07-18</td><td><a href='2025-07-18 - Infrastructure   DO you remember the....md'>Infrastructure   DO you remember the infrastructur...</a></td><td>malsicario, uat, let, com, zip</td><td>48</td><td>2</td></tr>
+<tr><td>2025-07-18</td><td><a href='2025-07-18 - malSicario cont  Below is a brief sum....md'>malSicario cont  Below is a brief summary fro wher...</a></td><td>docker, malsicario, env, wordpress, compose</td><td>58</td><td>2</td></tr>
+<tr><td>2025-07-17</td><td><a href='2025-07-17 - im logged into rpi via ssh over ether....md'>im logged into rpi via ssh over ethernet.  write m...</a></td><td>wpa_supplicant, echo, docker, sudo, ip</td><td>47</td><td>2</td></tr>
+<tr><td>2025-07-17</td><td><a href='2025-07-17 - remind me how to install docker on my....md'>remind me how to install docker on my rpi</a></td><td>docker, wordpress, nginx, malsicario, curl</td><td>26</td><td>2</td></tr>
+<tr><td>2025-07-17</td><td><a href='2025-07-17 - Hi there -  let's start a new chat.....md'>Hi there -  let's start a new chat.  I have an rpi...</a></td><td>pi, edit, ssh, mac, os</td><td>14</td><td>2</td></tr>
+<tr><td>2025-07-17</td><td><a href='2025-07-17 - On my Mac, how do I access an ext usb....md'>On my Mac, how do I access an ext usb drive within...</a></td><td>drive, ext, access, bash, usb</td><td>4</td><td>2</td></tr>
+<tr><td>2025-07-14</td><td><a href='2025-07-14 - using these as a guide can you fcreat....md'>using these as a guide can you fcreat ten more ima...</a></td><td>turn, end, say, returned, question</td><td>13</td><td>1</td></tr>
+<tr><td>2025-07-15</td><td><a href='2025-07-15 - Give me feedback for polishing my “po....md'>Give me feedback for polishing my “post” and turni...</a></td><td>digital, identity, trust, ll, paper</td><td>5</td><td>4</td></tr>
+<tr><td>2025-07-16</td><td><a href='2025-07-16 - Want me to help you set up Pi-hole’s....md'>Want me to help you set up Pi-hole’s DHCP next   Y...</a></td><td>pihole, 53, pi, conf, bash</td><td>43</td><td>2</td></tr>
+<tr><td>2025-07-16</td><td><a href='2025-07-16 - Can you rewrite the technical summary....md'>Can you rewrite the technical summary for me in th...</a></td><td>cloud, yes, option, sure, secure</td><td>8</td><td>4</td></tr>
+<tr><td>2025-07-16</td><td><a href='2025-07-16 - I get this when I try to install the....md'>I get this when I try to install the im-ort plugin...</a></td><td>wordpress, org, try, server, plugin</td><td>2</td><td>2</td></tr>
+<tr><td>2025-07-15</td><td><a href='2025-07-15 - OK.  Back to getting my Wordpress env....md'>OK.  Back to getting my Wordpress environment up a...</a></td><td>wordpress, docker, running, restart, compose</td><td>18</td><td>2</td></tr>
+<tr><td>2025-07-15</td><td><a href='2025-07-15 - Ok.  we've been working with the rpi....md'>Ok.  we've been working with the rpi and losing co...</a></td><td>eth0, 168, 192, pi, hole</td><td>52</td><td>2</td></tr>
+<tr><td>2025-07-14</td><td><a href='2025-07-14 - I have started my Wordpress site and....md'>I have started my Wordpress site and will need hel...</a></td><td>192, 168, pi, eth0, sudo</td><td>95</td><td>2</td></tr>
+<tr><td>2025-07-15</td><td><a href='2025-07-15 - uS congress is voting on these this w....md'>uS congress is voting on these this week.  C a you...</a></td><td>digital, secure, definition, given, act</td><td>10</td><td>4</td></tr>
+<tr><td>2025-07-14</td><td><a href='2025-07-14 - the end goal is to have pi-hole act a....md'>the end goal is to have pi-hole act as my DHCP ser...</a></td><td>docker, sudo, pi, echo, remove</td><td>24</td><td>2</td></tr>
+<tr><td>2025-07-14</td><td><a href='2025-07-14 - I just switch from spectrum to att.....md'>I just switch from spectrum to att.  This means a...</a></td><td>devices, switch, tens, asus, network</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-14</td><td><a href='2025-07-14 - we have been kicking around a lot of....md'>we have been kicking around a lot of ideas  lately...</a></td><td>access, credentials, lennar, similar, ideas</td><td>5</td><td>4</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - I have a note open that you created b....md'>I have a note open that you created based on work...</a></td><td>end, turn, say, just, app</td><td>63</td><td>1</td></tr>
+<tr><td>2025-06-17</td><td><a href='2025-06-17 - can nyou find a resource thwta has al....md'>can nyou find a resource thwta has all of van gogh...</a></td><td>van, high, wporks, thwta, nyou</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-12</td><td><a href='2025-07-12 - what movies are there about family dy....md'>what movies are there about family dynasties</a></td><td>family, dynasties, movies, power, dynasty</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-11</td><td><a href='2025-07-11 - find me some cool words from the work....md'>find me some cool words from the works of Tolkien...</a></td><td>gem, ai, identity, digital, marker</td><td>68</td><td>4</td></tr>
+<tr><td>2025-07-11</td><td><a href='2025-07-11 - I have collaborated with one of your....md'>I have collaborated with one of your colleagues on...</a></td><td>pdf, gem, business, plan, logo</td><td>19</td><td>4</td></tr>
+<tr><td>2025-07-12</td><td><a href='2025-07-12 - What are the penultimate meets within....md'>What are the penultimate meets within masters swim...</a></td><td>masters, meets, swimming, results, penultimate</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-11</td><td><a href='2025-07-11 -.md'></a></td><td>austin, boutique, dallas, hotels, hotel</td><td>2</td><td>0</td></tr>
+<tr><td>2025-07-11</td><td><a href='2025-07-11 - What are the major global national en....md'>What are the major global national entities concer...</a></td><td>graphic, blockchain, end, turn, lennar</td><td>19</td><td>4</td></tr>
+<tr><td>2025-07-11</td><td><a href='2025-07-11 - Can you provide me a list over the la....md'>Can you provide me a list over the last ten years...</a></td><td>graph, informational, infographic, heathrow, timeline</td><td>12</td><td>1</td></tr>
+<tr><td>2025-07-10</td><td><a href='2025-07-10 - ennar  My friend is part of the leade....md'>ennar  My friend is part of the leadership at Lenn...</a></td><td>lennar, man, build, ai, wordcloud</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-10</td><td><a href='2025-07-10 - Yo!  I am interviewing with Octane Le....md'>Yo!  I am interviewing with Octane Lending (Irving...</a></td><td>pdf, printable, okta, md, outputs</td><td>12</td><td>4</td></tr>
+<tr><td>2025-07-08</td><td><a href='2025-07-08 - summarise and give me a firm breakdow....md'>summarise and give me a firm breakdown  httpsnewde...</a></td><td>like, breakdown, firm, note, cables</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-08</td><td><a href='2025-07-08 - when I am I considered to be a reside....md'>when I am I considered to be a resident of a domic...</a></td><td>texas, domicile, guest, resident, home</td><td>10</td><td>0</td></tr>
+<tr><td>2025-07-08</td><td><a href='2025-07-08 - If I upload my site can you redesign....md'>If I upload my site can you redesign it or offer m...</a></td><td>b12, site, upload, toml, files</td><td>8</td><td>1</td></tr>
+<tr><td>2025-06-27</td><td><a href='2025-06-27 - tell em about the crypto scene im aus....md'>tell em about the crypto scene im austin and dalla...</a></td><td>blockchain, identity, crypto, defi, finance</td><td>22</td><td>4</td></tr>
+<tr><td>2025-07-07</td><td><a href='2025-07-07 - Im fleshing ut m y linkedin bio burb.....md'>Im fleshing ut m y linkedin bio burb.  Finish this...</a></td><td>tagline, style, transformation, digital, strategy</td><td>9</td><td>4</td></tr>
+<tr><td>2025-07-07</td><td><a href='2025-07-07 - Knowing my background and aspirations....md'>Knowing my background and aspirations give me the...</a></td><td>rights, global, identity, privacy, gdpr</td><td>23</td><td>4</td></tr>
+<tr><td>2025-07-07</td><td><a href='2025-07-07 - Here's something fun.  I need a few i....md'>Here's something fun.  I need a few ideas for symb...</a></td><td>turn, end, say, mood, board</td><td>13</td><td>1</td></tr>
+<tr><td>2025-07-07</td><td><a href='2025-07-07 - What are the best practices for secur....md'>What are the best practices for securing APIs, inc...</a></td><td>data, authentication, rate, api, limiting</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-06</td><td><a href='2025-07-06 - How can I make my own ChatGPT LLM and....md'>How can I make my own ChatGPT LLM and have it publ...</a></td><td>py, perfect, terminal, nist_llm, task</td><td>22</td><td>2</td></tr>
+<tr><td>2025-07-06</td><td><a href='2025-07-06 - Ok.  I'M BACK..md'>Ok.  I'M BACK.</a></td><td>nist_llm, ok, working, br, like</td><td>14</td><td>2</td></tr>
+<tr><td>2025-07-06</td><td><a href='2025-07-06 - Make video of bunnies in a meadow of....md'>Make video of bunnies in a meadow of daisies on a...</a></td><td>continue, video, videogpt, bunnies, 20</td><td>7</td><td>1</td></tr>
+<tr><td>2025-07-06</td><td><a href='2025-07-06 - What are so,e games I can play by mys....md'>What are so,e games I can play by myself</a></td><td>games, play, solo, game, board</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-04</td><td><a href='2025-07-04 - Give me step by step ethereal gas pur....md'>Give me step by step ethereal gas purchase instruc...</a></td><td>eth, gas, step, ethereal, wallet</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-04</td><td><a href='2025-07-04 - Educate me on gen alpha know how old....md'>Educate me on gen alpha know how old I am</a></td><td>gen, alpha, slang, lot, educate</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - Give me some more info and background....md'>Give me some more info and background on each of t...</a></td><td>ethereum, end, turn, eth, identity</td><td>21</td><td>4</td></tr>
+<tr><td>2025-07-04</td><td><a href='2025-07-04 - Ta.  Can you produce an indexed pdf w....md'>Ta.  Can you produce an indexed pdf with a clickab...</a></td><td>page, sure, files, title, pdf</td><td>18</td><td>2</td></tr>
+<tr><td>2025-07-04</td><td><a href='2025-07-04 - Give me a high level work breakdown s....md'>Give me a high level work breakdown structure for...</a></td><td>nft, token, tools, work, create</td><td>12</td><td>1</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - OK.  Back on it.    Remember we were....md'>OK.  Back on it.    Remember we were working on fe...</a></td><td>patch, content, href, summaries, page</td><td>221</td><td>2</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - Do you remember how we run susurrare....md'>Do you remember how we run susurrare  I want to us...</a></td><td>yt, dlp, run, py, 5mgzadrzv8ow7aii</td><td>4</td><td>2</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - Explain Turing complete to a very sma....md'>Explain Turing complete to a very smart eighth gra...</a></td><td>turing, complete, texas, grader, explain</td><td>4</td><td>0</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - Give a good well formatted review and....md'>Give a good well formatted review and summary of t...</a></td><td>identity, blockchain, children, infographic, data</td><td>10</td><td>4</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - What is the difference be CapCut and....md'>What is the difference be CapCut and Canva</a></td><td>capcut, canva, difference, video, web</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - How does crypto get “frozen” by autho....md'>How does crypto get “frozen” by authorities or any...</a></td><td>crypto, contract, admin, keys, theoretically</td><td>12</td><td>1</td></tr>
+<tr><td>2025-07-03</td><td><a href='2025-07-03 - help me get my head around this syeme....md'>help me get my head around this syement   “Ethereu...</a></td><td>state, node, nodes, code, block</td><td>8</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - when was the last time I flew from He....md'>when was the last time I flew from Heathrow to the...</a></td><td>time, heathrow, flew, travel, ve</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - how can I traCK THIS.md'>how can I traCK THIS</a></td><td>track, btc, explorer, https, address</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - what s the difference between the typ....md'>what s the difference between the types of network...</a></td><td>wbtc, network, custodian, protection, dive</td><td>8</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - Put this in plain English   “Ethereum....md'>Put this in plain English   “Ethereum is a determi...</a></td><td>state, machine, ethereum, like, memory</td><td>2</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - Show me an example of a minting contr....md'>Show me an example of a minting contract</a></td><td>python, contract, example, version, minting</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - I have a met mask wa;;et on my iPad.....md'>I have a met mask wa;;et on my iPad. I signed up f...</a></td><td>botanix, like, address, kinderledger, wallet</td><td>79</td><td>1</td></tr>
+<tr><td>2025-07-02</td><td><a href='2025-07-02 - he FROST method is a next-gen cryptog....md'>he FROST method is a next-gen cryptography trick....</a></td><td>threshold, multi, bridge, occurred, jibed</td><td>7</td><td>1</td></tr>
+<tr><td>2025-06-30</td><td><a href='2025-06-30 - what is the best way to wrap up and f....md'>what is the best way to wrap up and foam all of ou...</a></td><td>markdown, json, files, file, py</td><td>230</td><td>2</td></tr>
+<tr><td>2025-06-29</td><td><a href='2025-06-29 - Pull out the titles and put them in a....md'>Pull out the titles and put them in a list so I ca...</a></td><td>content, file, py, chat_culler, strip</td><td>65</td><td>2</td></tr>
+<tr><td>2025-04-25</td><td><a href='2025-04-25 - what summer classes to UTD offer.md'>what summer classes to UTD offer</a></td><td>pdf, download, classes, utd, summer</td><td>24</td><td>4</td></tr>
+<tr><td>2025-06-05</td><td><a href='2025-06-05 - can you find me classes at utd simila....md'>can you find me classes at utd similar,t to this a...</a></td><td>online, blockchain, cybersecurity, digital, banking</td><td>16</td><td>4</td></tr>
+<tr><td>2025-06-23</td><td><a href='2025-06-23 - summaries this for me   httpspublicat....md'>summaries this for me   httpspublications.parliame...</a></td><td>police, yes, summarized, briefing, ireland</td><td>4</td><td>1</td></tr>
+<tr><td>2025-07-01</td><td><a href='2025-07-01 - I have a medical marijuana card and l....md'>I have a medical marijuana card and live in dallas...</a></td><td>mg, texas, state, medical, thc</td><td>12</td><td>0</td></tr>
+<tr><td>2025-06-30</td><td><a href='2025-06-30 - Of the following , and given my skill....md'>Of the following , and given my skillset which you...</a></td><td>linkedin, detailed, set, web3, voice</td><td>21</td><td>4</td></tr>
+<tr><td>2025-05-18</td><td><a href='2025-05-18 - give me a step by step how to attend....md'>give me a step by step how to attend for a grade t...</a></td><td>step, class, evening, 6315, utd</td><td>2</td><td>1</td></tr>
+<tr><td>2025-06-29</td><td><a href='2025-06-29 - Summarise this for me and write me a....md'>Summarise this for me and write me a LinkedIn blog...</a></td><td>write, cybersecurity, blog, linkedin, voice</td><td>5</td><td>4</td></tr>
+<tr><td>2025-06-29</td><td><a href='2025-06-29 - can you get me started on a nice blog....md'>can you get me started on a nice blog post around...</a></td><td>didcomm, post, identity, blog, yes</td><td>21</td><td>4</td></tr>
+<tr><td>2025-06-29</td><td><a href='2025-06-29 - do have access to my outlook.md'>do have access to my outlook</a></td><td>access, outlook, set, like, connectors</td><td>6</td><td>2</td></tr>
+<tr><td>2025-06-29</td><td><a href='2025-06-29 - Sketch Purdy like Renoir.md'>Sketch Purdy like Renoir</a></td><td>turn, end, sketchier, like, say</td><td>7</td><td>1</td></tr>
+<tr><td>2025-06-28</td><td><a href='2025-06-28 - CISA ANKI deck   We’ve been discussin....md'>CISA ANKI deck   We’ve been discussing my Complete...</a></td><td>cloze, tags, id, domain, explanation</td><td>62</td><td>1</td></tr>
+<tr><td>2025-06-28</td><td><a href='2025-06-28 - i’m going for my CiSA.  i want tos ta....md'>i’m going for my CiSA.  i want tos tart taking som...</a></td><td>questions, cisa, random, batch, practice</td><td>10</td><td>4</td></tr>
+<tr><td>2025-06-27</td><td><a href='2025-06-27 - explain this to em at my level based....md'>explain this to em at my level based on what you k...</a></td><td>like, based, post, turn, end</td><td>9</td><td>4</td></tr>
+<tr><td>2025-06-23</td><td><a href='2025-06-23 - Using this picture as a guide, create....md'>Using this picture as a guide, create me a wren wh...</a></td><td>pip, working, draw, officer, https</td><td>10</td><td>1</td></tr>
+<tr><td>2025-06-28</td><td><a href='2025-06-28 - explain this to me like a high school....md'>explain this to me like a high school student inte...</a></td><td>ethereum, cool, like, math, projec</td><td>6</td><td>1</td></tr>
+<tr><td>2025-06-27</td><td><a href='2025-06-27 - I live in North Dallas what are the t....md'>I live in North Dallas what are the top five large...</a></td><td>market, farmers, map, cite, local</td><td>14</td><td>0</td></tr>
+<tr><td>2025-06-22</td><td><a href='2025-06-22 - a kid just asked me what language is....md'>a kid just asked me what language is linux  I know...</a></td><td>linux, written, language, kid, like</td><td>2</td><td>1</td></tr>
+<tr><td>2024-10-21</td><td><a href='2024-10-21 - i want to start a just-in-time t-shir....md'>i want to start a just-in-time t-shirt company. th...</a></td><td>cotton, quality, moq, dallas, island</td><td>18</td><td>1</td></tr>
+        <!-- etc. -->
+      </tbody>
+    </table>
+  </main>
+
+  <footer class="badoblog-css-site-footer">
+    <p>&copy; 2025 ChatBuddy</p>
+  </footer>
+
+</body>
+</html>
