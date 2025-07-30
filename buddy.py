@@ -34,12 +34,13 @@ from sklearn.cluster import KMeans
 
 # Helper to sanitize filenames
 # Helper to sanitize and truncate filenames
+# Helper to sanitize and truncate filenames
 def sanitize_filename(s):
     """Clean and truncate filenames to a safe length"""
     # Replace newline characters with spaces and strip whitespace
-    s = s.replace("\n", " ").strip()
+    s = s.replace("", " ").strip()
     # Remove invalid filesystem characters
-    s = re.sub(r"[\\/:*?\\"<>|]+", "", s)
+    s = re.sub(r'[\/:*?"<>|]+', '', s)
     # Truncate to avoid filesystem limits
     max_len = 50
     if len(s) > max_len:
@@ -100,7 +101,7 @@ def extract_keywords_for_messages(msgs, top_n=5):
     sums = np.array(X.sum(axis=0)).ravel()
     terms = vectorizer.get_feature_names_out()
     top_idxs = sums.argsort()[::-1][:top_n]
-    return [terms[i] for i in top_idxs][i] for i in idxs]
+    return [terms[i] for i in top_idxs]
 
 # Write Markdown file with given filename base
 def write_md_file(msgs, base_name, out_dir):
