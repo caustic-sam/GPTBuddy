@@ -1,22 +1,17 @@
 """
-Chat Organizer MVP (File/Dir/ZIP Input, Streaming)
+Chat Organizer MVP (with Top-5 Keyword Extraction)
 
-Parses OpenAI JSON chat exports—whether a single file, ZIP, or directory—into per-conversation Markdown:
+Parses OpenAI JSON chat exports—single file, ZIP, or directory—into per-conversation Markdown plus top keywords:
 - Accepts --input_path (file, ZIP, or directory)
 - Recursively finds JSON files (or extracts ZIP)
-- Detects real conversations folder if present
-- Supports formats:
-  • Single dict with 'messages'
-  • Raw list of {role,content}
-  • List-of-mapping exports
-  • Top-level dict of conv objects
-  • Monolithic array streaming via ijson
-- Writes one Markdown per conversation
+- Supports formats: single dict with 'messages', raw list, mapping exports, top-level dict, streaming arrays
+- Computes top-5 TF-IDF keywords per conversation
+- Writes one Markdown per conversation including keywords
 - Builds index.md and malformed.md
 - Detailed debug & summary
 
 Dependencies:
-  pip install ijson
+  pip install ijson scikit-learn numpy
 
 Usage:
   python chat_organizer.py \
@@ -29,6 +24,8 @@ import zipfile
 import tempfile
 from pathlib import Path
 import ijson
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 def extract_from_mapping(conv):
     msgs, mapping = [], conv.get('mapping', {}) or {}
@@ -39,7 +36,7 @@ def extract_from_mapping(conv):
         if md:
             for part in md.get('content', {}).get('parts', []) or []:
                 if isinstance(part, str) and part.strip():
-                    msgs.append({'role': md.get('author', {}).get('role', 'unknown'), 'content': part})
+                    msgs.append({'role': md.get('author',{}).get('role','unknown'), 'content': part})
         for cid in node.get('children', []) or []:
             dfs(cid)
     for r in roots:
@@ -58,7 +55,7 @@ def extract_messages(data):
         return allm
     if isinstance(data, dict):
         allm = []
-        for k, v in data.items():
+        for v in data.values():
             if isinstance(v, dict) and 'mapping' in v:
                 allm.extend(extract_from_mapping(v))
             elif isinstance(v, dict) and 'messages' in v:
@@ -66,18 +63,34 @@ def extract_messages(data):
         return allm
     return []
 
+def extract_keywords_for_messages(msgs, top_n=5):
+    texts = [m.get('content','') for m in msgs]
+    if not texts:
+        return []
+    vectorizer = TfidfVectorizer(stop_words='english', max_features=1000)
+    X = vectorizer.fit_transform(texts)
+    sums = np.array(X.sum(axis=0)).ravel()
+    terms = vectorizer.get_feature_names_out()
+    top_idxs = sums.argsort()[::-1][:top_n]
+    return [terms[i] for i in top_idxs]
+
 def write_md(msgs, name, out):
+    safe = name.replace('/','_')
+    fn = f"{safe}.md"
     lines = [f"# Chat: {name}", ""]
+    # Top-5 keywords
+    kw = extract_keywords_for_messages(msgs, top_n=5)
+    if kw:
+        lines.append(f"**Top Keywords:** {', '.join(kw)}")
+        lines.append("")
     count = 0
     for m in msgs:
-        content = m.get('content', '').strip()
+        content = m.get('content','').strip()
         if not content:
             continue
-        role = m.get('role', 'unknown')
+        role = m.get('role','unknown')
         lines.append(f"## {role}\n{content}\n")
         count += 1
-    safe = name.replace('/', '_')
-    fn = f"{safe}.md"
     (out / fn).write_text("\n".join(lines), encoding='utf-8')
     return fn, count
 
@@ -101,21 +114,33 @@ def parse_chats(inp, out_dir):
     # Collect JSON files, filter out macOS artifacts
     files = [f for f in base.rglob('*.json') if '__MACOSX' not in f.as_posix() and not f.name.startswith('._')]
     print(f"Found {len(files)} JSON files under {base}")
-    for f in files:
-        print(f"Processing {f.relative_to(base)}")
     idx, skip = [], []
     for f in files:
         rel = f.relative_to(base).as_posix()
+        print(f"Processing {rel}")
         try:
             data = json.loads(f.read_text(encoding='utf-8'))
         except Exception as e:
             skip.append((rel, f"json_err:{e}", None))
             continue
-        # Session index detection
-        if isinstance(data, list) and data and all(isinstance(item, dict) and 'id' in item and 'title' in item for item in data):
+        # Session index detection (metadata-only lists)
+        if (
+            isinstance(data, list)
+            and data
+            and all(
+                isinstance(item, dict)
+                and 'id' in item
+                and 'title' in item
+                and 'mapping' not in item
+                and 'messages' not in item
+                for item in data
+            )
+        ):
             session_lines = [f"# Sessions from {rel}", ""]
             for item in data:
-                session_lines.append(f"- **{item.get('title','')}** (ID: {item.get('id')}) created: {item.get('create_time')}")
+                session_lines.append(
+                    f"- **{item.get('title','')}** (ID: {item.get('id')}) created: {item.get('create_time')}"
+                )
             sess_fn = 'sessions_index.md'
             (out / sess_fn).write_text("\n".join(session_lines), encoding='utf-8')
             idx.append((f"sessions_{rel}", sess_fn, len(data)))
@@ -150,7 +175,7 @@ def parse_chats(inp, out_dir):
     print(f"Done: {len(idx)} chats extracted; {len(skip)} skipped.")
 
 def main():
-    parser = argparse.ArgumentParser(description='Chat Organizer MVP')
+    parser = argparse.ArgumentParser(description='Chat Organizer MVP with Keywords')
     parser.add_argument('--input_path', '--input_dir', dest='inp', required=True,
                         help='Path to a JSON file, ZIP archive, or directory of JSON chats')
     parser.add_argument('--output_dir', required=True, help='Directory for Markdown output')
