@@ -1,128 +1,161 @@
 """
-Chat Organizer MVP (with Debugging)
+Chat Organizer MVP (File/Dir/ZIP Input, Streaming)
 
-This minimal script parses downloaded OpenAI JSON chat exports and generates basic Markdown outputs, while retaining malformed files for review and logging progress:
-- Recursively finds all JSON files under input_dir
-- Logs every JSON file discovered
-- Extracts messages (role and content)
-- Writes one Markdown file per source JSON, preserving relative path
-- Generates an index.md linking to each Markdown file
-- Collects any files that fail to load or have unexpected structure into malformed.md
-- At end, prints summary counts of files processed and skipped
+Parses OpenAI JSON chat exports—whether a single file, ZIP, or directory—into per-conversation Markdown:
+- Accepts --input_path (file, ZIP, or directory)
+- Recursively finds JSON files (or extracts ZIP)
+- Detects real conversations folder if present
+- Supports formats:
+  • Single dict with 'messages'
+  • Raw list of {role,content}
+  • List-of-mapping exports
+  • Top-level dict of conv objects
+  • Monolithic array streaming via ijson
+- Writes one Markdown per conversation
+- Builds index.md and malformed.md
+- Detailed debug & summary
+
+Dependencies:
+  pip install ijson
 
 Usage:
   python chat_organizer.py \
-    --input_dir ./downloads \
+    --input_path ./your_data.zip \
     --output_dir ./parsed_chats
 """
-
 import argparse
 import json
+import zipfile
+import tempfile
 from pathlib import Path
+import ijson
 
-def parse_chats(input_dir, output_dir):
-    input_path = Path(input_dir)
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+def extract_from_mapping(conv):
+    msgs, mapping = [], conv.get('mapping', {}) or {}
+    roots = [nid for nid,node in mapping.items() if not node.get('parent')]
+    def dfs(node_id):
+        node = mapping.get(node_id, {})
+        md = node.get('message')
+        if md:
+            for part in md.get('content', {}).get('parts', []) or []:
+                if isinstance(part, str) and part.strip():
+                    msgs.append({'role': md.get('author', {}).get('role', 'unknown'), 'content': part})
+        for cid in node.get('children', []) or []:
+            dfs(cid)
+    for r in roots:
+        dfs(r)
+    return msgs
 
-    # Recursively find all JSON files
-    json_files = list(input_path.rglob('*.json'))
-    print(f"DEBUG: Found {len(json_files)} JSON files under '{input_dir}':")
-    for jf in json_files:
-        print(f"  - {jf.relative_to(input_path)}")
+def extract_messages(data):
+    if isinstance(data, dict) and 'messages' in data:
+        return data['messages']
+    if isinstance(data, list) and data and isinstance(data[0], dict) and 'role' in data[0] and 'content' in data[0]:
+        return data
+    if isinstance(data, list) and data and isinstance(data[0], dict) and 'mapping' in data[0]:
+        allm = []
+        for conv in data:
+            allm.extend(extract_from_mapping(conv))
+        return allm
+    if isinstance(data, dict):
+        allm = []
+        for k, v in data.items():
+            if isinstance(v, dict) and 'mapping' in v:
+                allm.extend(extract_from_mapping(v))
+            elif isinstance(v, dict) and 'messages' in v:
+                allm.extend(v['messages'])
+        return allm
+    return []
 
-    index_entries = []
-    skip_records = []  # list of (rel_path, error_message, raw_content)
+def write_md(msgs, name, out):
+    lines = [f"# Chat: {name}", ""]
+    count = 0
+    for m in msgs:
+        content = m.get('content', '').strip()
+        if not content:
+            continue
+        role = m.get('role', 'unknown')
+        lines.append(f"## {role}\n{content}\n")
+        count += 1
+    safe = name.replace('/', '_')
+    fn = f"{safe}.md"
+    (out / fn).write_text("\n".join(lines), encoding='utf-8')
+    return fn, count
 
-    for json_file in json_files:
-        rel = json_file.relative_to(input_path)
-        rel_str = rel.as_posix()
-        print(f"DEBUG: Processing {rel_str}")
-
-        # Read raw text for potential retention
+def parse_chats(inp, out_dir):
+    p = Path(inp)
+    # Extract ZIP if needed
+    if p.is_file() and p.suffix.lower() == '.zip':
+        td = tempfile.TemporaryDirectory()
+        print(f"Extracting zip to {td.name}")
+        with zipfile.ZipFile(p, 'r') as zf:
+            zf.extractall(td.name)
+        base = Path(td.name)
+    else:
+        base = p
+    # Detect conversations/ subfolder
+    conv_subdir = base / 'conversations'
+    if conv_subdir.is_dir():
+        print(f"Using conversations folder: {conv_subdir}")
+        base = conv_subdir
+    out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
+    # Collect JSON files, filter out macOS artifacts
+    files = [f for f in base.rglob('*.json') if '__MACOSX' not in f.as_posix() and not f.name.startswith('._')]
+    print(f"Found {len(files)} JSON files under {base}")
+    for f in files:
+        print(f"Processing {f.relative_to(base)}")
+    idx, skip = [], []
+    for f in files:
+        rel = f.relative_to(base).as_posix()
         try:
-            raw = json_file.read_text(encoding='utf-8')
+            data = json.loads(f.read_text(encoding='utf-8'))
         except Exception as e:
-            print(f"Skipping {rel_str}: unable to read file ({e})")
-            skip_records.append((rel_str, f"read_error: {e}", None))
+            skip.append((rel, f"json_err:{e}", None))
             continue
-
-        # Parse JSON
-        try:
-            data = json.loads(raw)
-        except Exception as e:
-            print(f"Skipping {rel_str}: JSON parse error ({e})")
-            skip_records.append((rel_str, f"json_error: {e}", raw))
+        # Session index detection
+        if isinstance(data, list) and data and all(isinstance(item, dict) and 'id' in item and 'title' in item for item in data):
+            session_lines = [f"# Sessions from {rel}", ""]
+            for item in data:
+                session_lines.append(f"- **{item.get('title','')}** (ID: {item.get('id')}) created: {item.get('create_time')}")
+            sess_fn = 'sessions_index.md'
+            (out / sess_fn).write_text("\n".join(session_lines), encoding='utf-8')
+            idx.append((f"sessions_{rel}", sess_fn, len(data)))
             continue
-
-        # Determine messages list
-        if isinstance(data, dict) and 'messages' in data:
-            messages = data['messages']
-        elif isinstance(data, list) and data and isinstance(data[0], dict) and 'messages' in data[0]:
-            # Case: list of conversations
-            # Flatten all messages across list
-            messages = []
-            for conv in data:
-                msgs = conv.get('messages', [])
-                messages.extend(msgs if isinstance(msgs, list) else [])
-        elif isinstance(data, list):
-            messages = data
-        else:
-            print(f"Skipping {rel_str}: unexpected structure")
-            skip_records.append((rel_str, "structure_error", raw))
-            continue
-
-        # Write Markdown for valid chat
-        md_name = rel.with_suffix('.md').as_posix().replace('/', '_')
-        md_file = output_path / md_name
-        md_lines = [f"# Chat: {rel_str}", ""]
-        count_msgs = 0
-        for msg in messages:
-            role = msg.get('role', 'unknown')
-            content = msg.get('content', '').strip()
-            if content:
-                md_lines.append(f"## {role}\n{content}\n")
-                count_msgs += 1
-        if count_msgs == 0:
-            print(f"WARNING: No messages found in {rel_str}")
-        md_file.write_text("\n".join(md_lines), encoding='utf-8')
-        index_entries.append((rel_str, md_name))
-        print(f"DEBUG: Wrote {md_name} with {count_msgs} messages")
-
+        msgs = extract_messages(data)
+        # Streaming fallback for arrays
+        if not msgs:
+            try:
+                for i, conv in enumerate(ijson.items(f.open('rb'), 'item')):
+                    submsgs = extract_messages(conv)
+                    if submsgs:
+                        name = f"{rel}_part{i+1}"
+                        fn, c = write_md(submsgs, name, out)
+                        idx.append((name, fn, c))
+                continue
+            except Exception as e:
+                skip.append((rel, f"stream_err:{e}", None))
+                continue
+        # Write normal messages
+        fn, c = write_md(msgs, rel, out)
+        idx.append((rel, fn, c))
     # Write index.md
-    idx_path = output_path / 'index.md'
-    lines = ['# Chat Index', '']
-    for rel_path, md_name in sorted(index_entries):
-        lines.append(f"- [{rel_path}]({md_name})")
-    idx_path.write_text("\n".join(lines), encoding='utf-8')
-
-    # Write malformed.md if any
-    if skip_records:
-        malformed_path = output_path / 'malformed.md'
-        m_lines = ['# Malformed Files', '']
-        for rel_path, err, raw in skip_records:
-            m_lines.append(f"## {rel_path}")
-            m_lines.append(f"**Error:** {err}")
-            if raw:
-                m_lines.append('```json')
-                snippet = raw if len(raw) < 10000 else raw[:10000] + '\n...'
-                m_lines.append(snippet)
-                m_lines.append('```')
-            m_lines.append('')
-        malformed_path.write_text("\n".join(m_lines), encoding='utf-8')
-        print(f"Malformed files recorded in {malformed_path}")
-
-    # Summary
-    print(f"SUMMARY: Processed {len(index_entries)} files, skipped {len(skip_records)} malformed.")
-    print(f"Markdown files generated in {output_path}")
-
+    index_lines = ["# Chat Index", ""] + [f"- [{n} ({c} msgs)]({fn})" for n, fn, c in idx]
+    (out / 'index.md').write_text("\n".join(index_lines), encoding='utf-8')
+    # Write malformed.md
+    if skip:
+        mal_lines = ["# Malformed Files", ""]
+        for rel, err, _ in skip:
+            mal_lines += [f"## {rel}", f"**Error:** {err}", ""]
+        (out / 'malformed.md').write_text("\n".join(mal_lines), encoding='utf-8')
+        print(f"Malformed recorded in {out/'malformed.md'}")
+    print(f"Done: {len(idx)} chats extracted; {len(skip)} skipped.")
 
 def main():
     parser = argparse.ArgumentParser(description='Chat Organizer MVP')
-    parser.add_argument('--input_dir', required=True, help='Directory of JSON chat exports')
+    parser.add_argument('--input_path', '--input_dir', dest='inp', required=True,
+                        help='Path to a JSON file, ZIP archive, or directory of JSON chats')
     parser.add_argument('--output_dir', required=True, help='Directory for Markdown output')
     args = parser.parse_args()
-    parse_chats(args.input_dir, args.output_dir)
+    parse_chats(args.inp, args.output_dir)
 
 if __name__ == '__main__':
     main()
