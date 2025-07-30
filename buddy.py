@@ -186,7 +186,7 @@ def parse_chats(inp, out_dir, n_clusters):
         msgs = extract_from_mapping(data) if isinstance(data, dict) and 'mapping' in data else data.get('messages') if isinstance(data, dict) else data if isinstance(data,list) else []
         if msgs:
             dt = datetime.fromtimestamp(f.stat().st_mtime).strftime('%y-%m-%d')
-            uq = next((m['content'] for m in msgs if m.get('role')=='user'), '')
+            uq = next((m['content'] for m in msgs if m.get('role')=='user'))
             base_name = f"{dt}-{uq}"
             text = ' '.join(m.get('content','') for m in msgs)
             records.append((base_name, msgs, text))
