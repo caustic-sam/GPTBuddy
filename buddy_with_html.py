@@ -32,6 +32,12 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
+# Simple HTML escape for safe text insertion into attributes/nodes
+import html as _py_html
+
+def html_escape(s: str) -> str:
+    return _py_html.escape(s, quote=True) if isinstance(s, str) else str(s)
+
 # --------------------------------------------------------------------------------------
 # HTML CLEANING UTILITY
 # --------------------------------------------------------------------------------------
@@ -111,7 +117,6 @@ def clean_html_content(html: str) -> str:
 #   available; otherwise, we fall back to a safe preformatted view.
 # --------------------------------------------------------------------------------------
 
-# A tiny, self-contained CSS theme (dark/light aware) so HTML looks professional
 BASE_CSS = """
 :root { --bg:#0b0f14; --fg:#e6edf3; --muted:#9fb0c0; --accent:#5fb3f7; --border:#1d2630; --code:#0f1720; --link:#7cc0ff; }
 @media (prefers-color-scheme: light) { :root { --bg:#fff; --fg:#111827; --muted:#4b5563; --accent:#2563eb; --border:#e5e7eb; --code:#f8fafc; --link:#1d4ed8; } }
@@ -132,6 +137,28 @@ table{width:100%;border-collapse:collapse;margin:1rem 0;font-variant-numeric:tab
 th,td{border:1px solid var(--border);padding:.6rem .5rem} th{text-align:left;background:rgba(95,179,247,.08)}
 hr{border:0;border-top:1px solid var(--border);margin:2rem 0}
 .header{margin-bottom:1rem}.title{font-size:2.3rem;font-weight:800}.subtitle{color:var(--muted);font-size:1rem}
+"""
+
+# CSS for index.html page (zebra rows, badges, clean fonts/colors)
+INDEX_CSS = """
+:root { --bg:#0b0f14; --fg:#e6edf3; --muted:#9fb0c0; --accent:#7dd3fc; --accent2:#a78bfa; --border:#1d2630; }
+@media (prefers-color-scheme: light) { :root { --bg:#ffffff; --fg:#0f172a; --muted:#475569; --accent:#0284c7; --accent2:#7c3aed; --border:#e2e8f0; } }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+main{max-width:1100px;margin:3rem auto;padding:0 1rem}
+header .title{font-weight:800;font-size:2.2rem;letter-spacing:-.01em;margin-bottom:.25rem}
+header .subtitle{color:var(--muted)}
+.table-wrap{margin-top:1.25rem;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#001018;padding:.9rem .8rem;text-align:left;font-weight:800}
+tbody td{border-top:1px solid var(--border);padding:.7rem .8rem;vertical-align:top}
+tbody tr:nth-child(odd){background:rgba(125,211,252,.06)}
+tbody tr:hover{background:rgba(167,139,250,.10)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.badge{display:inline-block;padding:.18rem .5rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;color:var(--muted)}
+kbd{background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:6px;padding:.1rem .35rem;font-size:.8rem}
 """
 
 
@@ -305,16 +332,34 @@ def cluster_chats(chat_texts, n_clusters):
     return labels_full
 
 # Write a single chat to Markdown
-def write_markdown(out_dir, filename, msgs):
-    """Write a chat conversation to a Markdown file."""
+def write_markdown(out_dir, filename, msgs, title=None):
+    """Write a chat conversation to a Markdown file.
+
+    Parameters
+    ----------
+    out_dir : str | Path
+        Destination directory
+    filename : str
+        File name to write (already sanitized)
+    msgs : list[dict]
+        Conversation messages
+    title : str | None
+        Optional human-friendly title (we'll write it as an H1 at the top when provided)
+    """
     path = Path(out_dir) / filename
     lines = []
+
+    # If we have a full title (e.g., date + full initial user query), write it once at the top
+    if title and str(title).strip():
+        lines.append(f"# {title}\n")
+
     for m in msgs:
         role = m.get('role','unknown')
         content = m.get('content','').strip()
         if not content:
             continue
         lines.append(f"## {role}\n{content}\n")
+
     path.write_text("\n".join(lines), encoding='utf-8')
     return filename, len(msgs)
 
@@ -408,7 +453,7 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
     texts = [text for _, _, text in records]
     labels = cluster_chats(texts, n_clusters)
     for (bn, msgs, text), lab in zip(records, labels):
-        fn, _ = write_markdown(out, sanitize_filename(bn) + '.md', msgs)
+        fn, _ = write_markdown(out, sanitize_filename(bn) + '.md', msgs, title=bn)
         # Optionally emit a per-conversation HTML file next to the Markdown.
         # This is controlled by the --export_html flag so you can toggle it.
         if export_html:
@@ -440,10 +485,20 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
     # Write HTML overview
     html = [
         '<!DOCTYPE html>',
-        '<html><head><meta charset="utf-8"><title>Chat Index</title></head><body>',
-        '<h1>Chat Index</h1>',
-        '<table border="1" cellpadding="5">',
-        '<tr><th>Date</th><th>Title</th><th>Keywords</th><th>Messages</th><th>Cluster</th></tr>'
+        '<html><head><meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        '<title>Chat Index</title>',
+        f'<style>{INDEX_CSS}</style>',
+        '</head><body>',
+        '<main>',
+        '<header>',
+        '<div class="title">Chat Index</div>',
+        '<div class="subtitle">Full initial queries shown • Click a title to open the Markdown</div>',
+        '</header>',
+        '<div class="table-wrap">',
+        '<table>',
+        '<thead><tr><th>Date</th><th>Title</th><th>Keywords</th><th>Messages</th><th>Cluster</th></tr></thead>',
+        '<tbody>'
     ]
     for (bn, fn, cnt), lab, (r_bn, r_msgs, _) in zip(index, labels, records):
         if ' - ' in bn:
@@ -451,14 +506,17 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
         else:
             date, title = '', bn
         kws = extract_keywords_for_messages(r_msgs)
+        full_title = title  # full initial query part
+        safe_title = html_escape(full_title)
+        link = f"<a href='{fn}'>{safe_title}</a>"
         html.append(
-            f"<tr><td>{date}</td>"
-            f"<td><a href='{fn}'>{sanitize_filename(title)}</a></td>"
-            f"<td>{', '.join(kws)}</td>"
-            f"<td>{cnt}</td>"
-            f"<td>{lab}</td></tr>"
+            f"<tr><td>{html_escape(date)}</td>"
+            f"<td>{link}</td>"
+            f"<td>{html_escape(', '.join(kws))}</td>"
+            f"<td><span class='badge'>{cnt}</span></td>"
+            f"<td><span class='badge'>{lab}</span></td></tr>"
         )
-    html.extend(['</table>', '</body></html>'])
+    html.extend(['</tbody></table></div>', '</main>', '</body></html>'])
 
     # --------------------------------------------------------------------------------------
     # Finalize the HTML index:
