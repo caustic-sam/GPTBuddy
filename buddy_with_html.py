@@ -5,10 +5,17 @@ Parses OpenAI JSON chat exports (file/ZIP/directory) into per-conversation Markd
 extracts top-5 keywords, clusters chats, and generates both Markdown and HTML indices.
 
 Usage:
-  python chat_organizer_full.py \
+
+  python buddy_with_html.py \
     --input_path ./export.zip \
     --output_dir ./parsed_chats \
     [--clusters 5]
+     
+  python buddy_with_html.py \
+  --input_path ./export.zip \
+  --output_dir ./parsed_chats \
+  --clusters 5 \
+  --export_html
 
 Dependencies:
   pip install ijson scikit-learn numpy
@@ -24,6 +31,173 @@ import ijson
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+
+# --------------------------------------------------------------------------------------
+# HTML CLEANING UTILITY
+# --------------------------------------------------------------------------------------
+# Why this exists:
+#   When we convert/chat-organize content, various tool artifacts can end up embedded in
+#   the output as JSON blobs (e.g., results from automations or editor tools). These
+#   fragments look like: {"result": "Successfully created text document ...", "textdoc_id": "..."}
+#   or sometimes appear within fenced code blocks. These are noise for human readers.
+#
+# What this function does:
+#   * Removes inline JSON artifacts that contain keys like "textdoc_id" or "jawbone_id".
+#   * Removes lines that include known automation success messages (e.g., "Successfully created text document").
+#   * Removes fenced JSON blocks that include those keys.
+#   * Collapses excessive blank lines so the final HTML is tidy.
+#
+# Notes:
+#   * We keep the logic conservative on purpose—only clearly noisy patterns are removed.
+#   * If you discover more noise patterns later, add another regex below with a short
+#     explanation so future-you understands why it exists.
+# --------------------------------------------------------------------------------------
+import re
+
+def clean_html_content(html: str) -> str:
+    """Remove tool/automation artifacts and other obvious noise from generated HTML.
+
+    Parameters
+    ----------
+    html : str
+        The raw HTML string we are about to write to disk.
+
+    Returns
+    -------
+    str
+        A cleaned HTML string with automation/tool noise removed and spacing normalized.
+    """
+    # ----------------------------------------------------------------------------------
+    # 1) Strip single-line JSON artifacts that include automation IDs (textdoc_id, jawbone_id)
+    #    Example to remove:
+    #      {"result": "Successfully created text document ...", "textdoc_id": "abc123", ...}
+    # ----------------------------------------------------------------------------------
+    html = re.sub(r"\{[^{}]*?\btextdoc_id\b[^{}]*?\}", "", html, flags=re.DOTALL)
+    html = re.sub(r"\{[^{}]*?\bjawbone_id\b[^{}]*?\}", "", html, flags=re.DOTALL)
+
+    # ----------------------------------------------------------------------------------
+    # 2) Remove explicit automation success lines embedded in HTML/text nodes
+    # ----------------------------------------------------------------------------------
+    html = re.sub(r"Successfully created text document[^<]*", "", html)
+
+    # ----------------------------------------------------------------------------------
+    # 3) Remove fenced JSON/code blocks that contain those IDs (defensive clean)
+    #    This targets blocks like:
+    #      ```json
+    #      { ... "textdoc_id": "..." ... }
+    #      ```
+    # ----------------------------------------------------------------------------------
+    html = re.sub(
+        r"```(?:json)?\s*\{[\s\S]*?(?:textdoc_id|jawbone_id)[\s\S]*?\}\s*```",
+        "",
+        html,
+        flags=re.IGNORECASE,
+    )
+
+    # ----------------------------------------------------------------------------------
+    # 4) Collapse multiple blank lines / whitespace between tags for a neater output
+    # ----------------------------------------------------------------------------------
+    html = re.sub(r"\n\s*\n+", "\n\n", html)
+
+    return html
+
+# --------------------------------------------------------------------------------------
+# MARKDOWN → HTML RENDERING HELPERS (OPTIONAL)
+# --------------------------------------------------------------------------------------
+# Goal:
+#   Allow this script to emit a per-conversation HTML file alongside the Markdown,
+#   so you can drop the cleaned HTML straight into WordPress or any static site.
+#   We keep dependencies minimal by attempting to use the 'markdown' package if
+#   available; otherwise, we fall back to a safe preformatted view.
+# --------------------------------------------------------------------------------------
+
+# A tiny, self-contained CSS theme (dark/light aware) so HTML looks professional
+BASE_CSS = """
+:root { --bg:#0b0f14; --fg:#e6edf3; --muted:#9fb0c0; --accent:#5fb3f7; --border:#1d2630; --code:#0f1720; --link:#7cc0ff; }
+@media (prefers-color-scheme: light) { :root { --bg:#fff; --fg:#111827; --muted:#4b5563; --accent:#2563eb; --border:#e5e7eb; --code:#f8fafc; --link:#1d4ed8; } }
+*{box-sizing:border-box} html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+main{max-width:900px;margin:3rem auto;padding:0 1.2rem}
+h1,h2,h3,h4,h5,h6{font-weight:750;line-height:1.25;letter-spacing:-.01em;margin:1.8rem 0 .8rem}
+h1{font-size:2.1rem} h2{font-size:1.6rem;border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.25rem;color:var(--accent)}
+p,ul,ol{margin:1rem 0} ul,ol{padding-left:1.4rem} li+li{margin-top:.3rem}
+a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+code{background:var(--code);border:1px solid var(--border);padding:.12rem .3rem;border-radius:6px;font-size:.95em}
+pre{background:var(--code);border:1px solid var(--border);border-radius:12px;padding:1rem;overflow:auto}
+pre code{background:transparent;border:0;padding:0}
+blockquote{margin:1.2rem 0;padding:.8rem 1rem;border-left:4px solid var(--accent);background:rgba(95,179,247,.08);border-radius:6px}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--border);padding:.6rem .5rem} th{text-align:left;background:rgba(95,179,247,.08)}
+hr{border:0;border-top:1px solid var(--border);margin:2rem 0}
+.header{margin-bottom:1rem}.title{font-size:2.3rem;font-weight:800}.subtitle{color:var(--muted);font-size:1rem}
+"""
+
+
+def md_to_html_body(md_text: str) -> str:
+    """Convert Markdown text to HTML.
+
+    Strategy:
+      1) Try to use the 'markdown' package (if installed) for solid conversion
+         with tables and fenced code.
+      2) If the import fails, fall back to a safe <pre> rendering so nothing breaks.
+    """
+    try:
+        import markdown  # optional dependency; we fail gracefully if missing
+        return markdown.markdown(
+            md_text,
+            extensions=['extra','tables','fenced_code','sane_lists','admonition']
+        )
+    except Exception:
+        # Conservative fallback: encode as preformatted text
+        safe = (md_text.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
+        return f"<pre><code>{safe}</code></pre>"
+
+
+def wrap_html_document(title: str, body_html: str) -> str:
+    """Wrap a body fragment in a minimal, responsive HTML document shell.
+
+    We keep CSS inline so the file is fully portable (no extra assets).
+    """
+    return f"""<!doctype html>
+<html lang=\"en\"><head>
+<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+<title>{title}</title>
+<style>{BASE_CSS}</style>
+</head>
+<body>
+  <main>
+    <header class=\"header\"><div class=\"title\">{title}</div>
+      <div class=\"subtitle\">Converted from Markdown — cleaned</div></header>
+    <article>
+      {body_html}
+    </article>
+  </main>
+</body>
+</html>"""
+
+
+def write_html_from_markdown(out_dir: Path, md_filename: str) -> str:
+    """Read a Markdown file, render to HTML, clean it, and write alongside the source.
+
+    Returns the HTML filename for reference.
+    """
+    md_path = out_dir / md_filename
+    html_name = Path(md_filename).with_suffix('.html').name
+    html_path = out_dir / html_name
+
+    # Read the Markdown content
+    md_text = md_path.read_text(encoding='utf-8')
+
+    # Convert to HTML, then wrap in a document shell
+    body_html = md_to_html_body(md_text)
+    full_html = wrap_html_document(Path(md_filename).stem, body_html)
+
+    # Clean the HTML to strip automation/tool noise
+    cleaned = clean_html_content(full_html)
+    html_path.write_text(cleaned, encoding='utf-8')
+    return html_name
 
 # Helper to sanitize and truncate filenames
 def sanitize_filename(s):
@@ -76,15 +250,63 @@ def extract_keywords_for_messages(msgs, top_n=5):
     feature_names = np.array(vectorizer.get_feature_names_out())
     return feature_names[indices].tolist()
 
-# Cluster chat texts
+# Cluster chat texts with strong guards for empty/low-signal inputs.
 def cluster_chats(chat_texts, n_clusters):
+    """Cluster chat texts with strong guards for empty/low-signal inputs.
+
+    Why this exists:
+      Sklearn's TfidfVectorizer will raise `ValueError: empty vocabulary` when the
+      documents are all blank/whitespace or reduce to stop words. That can happen
+      with short/exported chats, or when messages are purely URLs/emojis.
+
+    Strategy:
+      * Pre-filter to identify which docs are non-empty after .strip().
+      * Downsize n_clusters so it never exceeds the number of non-empty docs.
+      * If TF-IDF still fails (e.g., all stop words), fall back to a single-cluster
+        assignment (all zeros) so the pipeline continues gracefully.
+      * Map predictions back to original indices; empty docs get cluster 0.
+    """
+    # Track which documents are non-empty after trimming whitespace
+    non_empty_mask = [isinstance(t, str) and bool(t.strip()) for t in chat_texts]
+
+    # Edge case: no non-empty documents -> return all zeros
+    if not any(non_empty_mask):
+        return np.zeros(len(chat_texts), dtype=int)
+
+    # Build the list of texts that actually contain content
+    non_empty_texts = [t for t, keep in zip(chat_texts, non_empty_mask) if keep]
+
+    # Ensure n_clusters is within [1, len(non_empty_texts)]
+    safe_k = max(1, min(int(n_clusters) if n_clusters else 1, len(non_empty_texts)))
+
     vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
-    X = vectorizer.fit_transform(chat_texts)
-    km = KMeans(n_clusters=n_clusters, random_state=42)
-    return km.fit_predict(X)
+
+    try:
+        X = vectorizer.fit_transform(non_empty_texts)
+    except ValueError:
+        # Empty vocabulary (e.g., all stop words) -> single cluster fallback
+        labels_full = np.zeros(len(chat_texts), dtype=int)
+        return labels_full
+
+    # KMeans: set n_init explicitly to avoid sklearn warnings; use a fixed seed for reproducibility
+    km = KMeans(n_clusters=safe_k, n_init=10, random_state=42)
+    labels_non_empty = km.fit_predict(X)
+
+    # Map back to the original positions (empty docs -> cluster 0)
+    labels_full = np.zeros(len(chat_texts), dtype=int)
+    j = 0
+    for i, keep in enumerate(non_empty_mask):
+        if keep:
+            labels_full[i] = labels_non_empty[j]
+            j += 1
+        else:
+            labels_full[i] = 0
+
+    return labels_full
 
 # Write a single chat to Markdown
 def write_markdown(out_dir, filename, msgs):
+    """Write a chat conversation to a Markdown file."""
     path = Path(out_dir) / filename
     lines = []
     for m in msgs:
@@ -97,7 +319,7 @@ def write_markdown(out_dir, filename, msgs):
     return filename, len(msgs)
 
 # Main orchestration
-def parse_chats(inp, out_dir, n_clusters):
+def parse_chats(inp, out_dir, n_clusters, export_html=False):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -187,6 +409,14 @@ def parse_chats(inp, out_dir, n_clusters):
     labels = cluster_chats(texts, n_clusters)
     for (bn, msgs, text), lab in zip(records, labels):
         fn, _ = write_markdown(out, sanitize_filename(bn) + '.md', msgs)
+        # Optionally emit a per-conversation HTML file next to the Markdown.
+        # This is controlled by the --export_html flag so you can toggle it.
+        if export_html:
+            try:
+                _ = write_html_from_markdown(out, fn)
+            except Exception as e:
+                # We log and keep going; a single conversion should not halt the whole run.
+                print(f"[warn] HTML export failed for {fn}: {e}")
         index.append((bn, fn, len(msgs)))
 
     # Write clusters_index.md
@@ -229,7 +459,16 @@ def parse_chats(inp, out_dir, n_clusters):
             f"<td>{lab}</td></tr>"
         )
     html.extend(['</table>', '</body></html>'])
-    (out/'index.html').write_text("\n".join(html), encoding='utf-8')
+
+    # --------------------------------------------------------------------------------------
+    # Finalize the HTML index:
+    #   * Join the collected HTML fragments.
+    #   * Run the result through our cleaner to strip tool/automation noise.
+    #   * Write the cleaned HTML to disk.
+    # --------------------------------------------------------------------------------------
+    raw_index_html = "\n".join(html)
+    cleaned_index_html = clean_html_content(raw_index_html)
+    (out / 'index.html').write_text(cleaned_index_html, encoding='utf-8')
 
     print(f"Done: {len(records)} chats; indices generated.")
 
@@ -241,5 +480,6 @@ if __name__=='__main__':
                         help='Directory for Markdown/HTML output')
     parser.add_argument('--clusters', type=int, default=5,
                         help='Number of clusters')
+    parser.add_argument('--export_html', action='store_true', help='Also export cleaned HTML per chat')
     args = parser.parse_args()
-    parse_chats(args.inp, args.output_dir, args.clusters)
+    parse_chats(args.inp, args.output_dir, args.clusters, export_html=args.export_html)
