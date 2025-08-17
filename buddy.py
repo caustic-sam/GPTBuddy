@@ -10,6 +10,7 @@ Features:
 - Extracts top-5 TF-IDF keywords per chat
 - Clusters chats by TF-IDF of full transcripts (`--clusters N`)
 - Generates `clusters_index.md`, `index.md`, and `malformed.md`
+- E.G:  buddy.py --~/Documents/mechats.zip ./parsed_chats --clusters 12
 
 Dependencies:
   pip install ijson scikit-learn numpy
