@@ -6,6 +6,8 @@ extracts top-5 keywords, clusters chats, and generates both Markdown and HTML in
 
 Usage:
 
+***./parsed_chats can be deleted prior to running
+
   python buddy_with_html.py \
     --input_path ./export.zip \
     --output_dir ./parsed_chats \
@@ -27,7 +29,6 @@ import tempfile
 import re
 from pathlib import Path
 from datetime import datetime
-import ijson
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
@@ -159,6 +160,36 @@ a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 .badge{display:inline-block;padding:.18rem .5rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;color:var(--muted)}
 kbd{background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:6px;padding:.1rem .35rem;font-size:.8rem}
+.toolbar{display:flex;gap:.5rem;align-items:center;margin:.8rem 0 1rem}
+input[type="search"]{width:100%;max-width:520px;padding:.55rem .7rem;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--fg)}
+input[type="search"]::placeholder{color:var(--muted)}
+/* Sticky header + shadow when scrolled */
+thead th{position:sticky; top:0; z-index:2}
+.thead-shadow thead th{box-shadow:0 2px 0 rgba(0,0,0,.1)}
+
+/* Smooth transitions for hover/focus */
+.table-wrap, thead th, tbody tr{transition:background-color .15s ease, box-shadow .15s ease}
+
+/* Copy-link button */
+.copy{cursor:pointer; border:1px solid var(--border); border-radius:8px; padding:.2rem .45rem; font-size:.85rem; background:transparent; color:var(--muted)}
+.copy:hover{color:var(--fg); border-color:var(--accent)}
+.copy:active{transform:translateY(1px)}
+.copy[aria-busy="true"]{opacity:.7}
+
+/* Mark (highlight) */
+mark{background:rgba(250,204,21,.35); color:inherit; padding:0 .15rem; border-radius:4px}
+/* Pagination */
+.pager{display:flex;gap:.5rem;align-items:center;justify-content:flex-end;margin:.6rem 0}
+.pager .pages{display:inline-flex;gap:.25rem;align-items:center}
+.pager .pg{cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:.25rem .55rem;background:transparent;color:var(--muted)}
+.pager .pg[disabled]{opacity:.5;cursor:not-allowed}
+.pager .pg:hover:not([disabled]){color:var(--fg);border-color:var(--accent)}
+.pager .pp{margin-left:.5rem;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--fg);padding:.25rem .4rem}
+/* Sort indicators */
+thead th[data-sort]{cursor:pointer; position:relative}
+thead th[data-sort].sorted-asc::after{content:" ▲"; font-size:.8em; color:var(--muted)}
+thead th[data-sort].sorted-desc::after{content:" ▼"; font-size:.8em; color:var(--muted)}
+thead th[data-sort].active{background:rgba(125,211,252,.18)}
 """
 
 
@@ -171,7 +202,7 @@ def md_to_html_body(md_text: str) -> str:
       2) If the import fails, fall back to a safe <pre> rendering so nothing breaks.
     """
     try:
-        import markdown  # optional dependency; we fail gracefully if missing
+        import markdown  # type: ignore # optional dependency; we fail gracefully if missing
         return markdown.markdown(
             md_text,
             extensions=['extra','tables','fenced_code','sane_lists','admonition']
@@ -272,7 +303,7 @@ def extract_keywords_for_messages(msgs, top_n=5):
     except ValueError:
         # Empty vocabulary (e.g., all stop words); no keywords to extract
         return []
-    scores = np.asarray(X.sum(axis=0)).ravel()
+    scores = np.asarray(X.sum(axis=0)).ravel() # type: ignore
     indices = np.argsort(scores)[::-1][:top_n]
     feature_names = np.array(vectorizer.get_feature_names_out())
     return feature_names[indices].tolist()
@@ -454,19 +485,20 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
     labels = cluster_chats(texts, n_clusters)
     for (bn, msgs, text), lab in zip(records, labels):
         fn, _ = write_markdown(out, sanitize_filename(bn) + '.md', msgs, title=bn)
+        html_fn = None
         # Optionally emit a per-conversation HTML file next to the Markdown.
         # This is controlled by the --export_html flag so you can toggle it.
         if export_html:
             try:
-                _ = write_html_from_markdown(out, fn)
+                html_fn = write_html_from_markdown(out, fn)  # returns the HTML filename
             except Exception as e:
                 # We log and keep going; a single conversion should not halt the whole run.
                 print(f"[warn] HTML export failed for {fn}: {e}")
-        index.append((bn, fn, len(msgs)))
+        index.append((bn, fn, len(msgs), html_fn))
 
     # Write clusters_index.md
     clusters = {}
-    for (bn, fn, cnt), lab in zip(index, labels):
+    for (bn, fn, cnt, _html_fn), lab in zip(index, labels):
         clusters.setdefault(lab, []).append((bn, fn, cnt))
     clines = ['# Clusters Index', '']
     for lab, items in clusters.items():
@@ -478,7 +510,7 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
 
     # Write index.md
     ilines = ['# Chat Index', '']
-    for bn, fn, cnt in index:
+    for bn, fn, cnt, _html_fn in index:
         ilines.append(f"- [{bn} ({cnt} msgs)]({fn})")
     (out/'index.md').write_text("\n".join(ilines), encoding='utf-8')
 
@@ -495,12 +527,22 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
         '<div class="title">Chat Index</div>',
         '<div class="subtitle">Full initial queries shown • Click a title to open the Markdown</div>',
         '</header>',
+        '<div class="toolbar">',
+        '<input id="q" type="search" placeholder="Filter by title, keywords, or date (press / to focus)" aria-label="Filter">',
+        '<span class="badge" id="count"></span>',
+        '</div>',
+        '<div class="pager" id="pager-top">',
+        '<button class="pg prev" disabled>Prev</button>',
+        '<span class="pages"></span>',
+        '<button class="pg next">Next</button>',
+        '<select id="pp" class="pp" aria-label="Rows per page"><option>25</option><option selected>50</option><option>100</option></select>',
+        '</div>',
         '<div class="table-wrap">',
         '<table>',
-        '<thead><tr><th>Date</th><th>Title</th><th>Keywords</th><th>Messages</th><th>Cluster</th></tr></thead>',
+        '<thead><tr><th data-sort="link">Link</th><th data-sort="date">Date</th><th data-sort="text">Title</th><th data-sort="text">Keywords</th><th data-sort="num">Messages</th><th data-sort="num">Cluster</th></tr></thead>',
         '<tbody>'
     ]
-    for (bn, fn, cnt), lab, (r_bn, r_msgs, _) in zip(index, labels, records):
+    for (bn, fn, cnt, html_fn), lab, (r_bn, r_msgs, _) in zip(index, labels, records):
         if ' - ' in bn:
             date, title = bn.split(' - ', 1)
         else:
@@ -508,15 +550,203 @@ def parse_chats(inp, out_dir, n_clusters, export_html=False):
         kws = extract_keywords_for_messages(r_msgs)
         full_title = title  # full initial query part
         safe_title = html_escape(full_title)
-        link = f"<a href='{fn}'>{safe_title}</a>"
+        # Prefer linking to cleaned HTML if it was generated; otherwise, link to Markdown
+        target = html_fn if html_fn else fn
+        link = f"<a href='{target}'>{safe_title}</a>"
+        copy_btn = (f"<button class='copy' data-href='{target}' title='Copy link to clipboard'>🔗</button>")
         html.append(
-            f"<tr><td>{html_escape(date)}</td>"
-            f"<td>{link}</td>"
-            f"<td>{html_escape(', '.join(kws))}</td>"
-            f"<td><span class='badge'>{cnt}</span></td>"
-            f"<td><span class='badge'>{lab}</span></td></tr>"
+            f"<tr>"
+            f"<td data-col='link'>{copy_btn}</td>"
+            f"<td data-col='date'>{html_escape(date)}</td>"
+            f"<td data-col='title'>{link}</td>"
+            f"<td data-col='kws'>{html_escape(', '.join(kws))}</td>" # type: ignore
+            f"<td data-col='msgs'><span class='badge'>{cnt}</span></td>"
+            f"<td data-col='cluster'><span class='badge'>{lab}</span></td>"
+            f"</tr>"
         )
-    html.extend(['</tbody></table></div>', '</main>', '</body></html>'])
+    html.extend([
+        '</tbody></table></div>',
+        '<div class="pager" id="pager-bot">',
+        '<button class="pg prev" disabled>Prev</button>',
+        '<span class="pages"></span>',
+        '<button class="pg next">Next</button>',
+        '</div>',
+        '<script>',
+        '(function(){',
+        '  var q = document.getElementById("q");',
+        '  var count = document.getElementById("count");',
+        '  var table = document.querySelector("table");',
+        '  var thead = table && table.querySelector("thead");',
+        '  var tbody = table && table.querySelector("tbody");',
+        '  if (!tbody) return;',
+        '  var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));',
+        '  var sortState = {col:null, dir:1}; // 1 asc, -1 desc',
+        '  var ppSel = document.getElementById("pp");',
+        '  var perPage = parseInt((ppSel && ppSel.value) || "50", 10);',
+        '  var current = 0;',
+        '  var visible = rows.slice();',
+        '  var pagers = Array.prototype.slice.call(document.querySelectorAll(".pager"));',
+        '',
+        '  function unmark(el){',
+        '    if (!el) return;',
+        '    el.querySelectorAll("mark").forEach(function(m){',
+        '      var t = document.createTextNode(m.textContent);',
+        '      m.parentNode.replaceChild(t, m);',
+        '      m.parentNode.normalize();',
+        '    });',
+        '  }',
+        '  function highlight(td, term){',
+        '    if (!term || !td) return;',
+        '    var text = td.textContent;',
+        '    var lower = text.toLowerCase();',
+        '    var idx = 0; var out = []; var last = 0; var t = term.toLowerCase();',
+        '    while ((idx = lower.indexOf(t, idx)) !== -1){',
+        '      out.push(text.slice(last, idx));',
+        '      out.push("<mark>" + text.slice(idx, idx + t.length) + "</mark>");',
+        '      idx += t.length; last = idx;',
+        '    }',
+        '    out.push(text.slice(last));',
+        '    td.innerHTML = out.join("");',
+        '  }',
+        '  function parseDate(s){',
+        '    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return new Date(s+"T00:00:00Z").getTime();',
+        '    var t = Date.parse(s); return isNaN(t) ? 0 : t;',
+        '  }',
+        '  function sortBy(col, type){',
+        '    var dir = (sortState.col === col ? -sortState.dir : 1);',
+        '    sortState = {col:col, dir:dir};',
+        '    rows.sort(function(a,b){',
+        '      var A = a.querySelector("[data-col="+col+"]");',
+        '      var B = b.querySelector("[data-col="+col+"]");',
+        '      var av = A ? A.textContent.trim() : "";',
+        '      var bv = B ? B.textContent.trim() : "";',
+        '      if (type === "num"){',
+        '        av = parseFloat(av.replace(/[^0-9.-]/g, "")) || 0;',
+        '        bv = parseFloat(bv.replace(/[^0-9.-]/g, "")) || 0;',
+        '      } else if (type === "date"){',
+        '        av = parseDate(av);',
+        '        bv = parseDate(bv);',
+        '      } else {',
+        '        av = av.toLowerCase(); bv = bv.toLowerCase();',
+        '      }',
+        '      if (av < bv) return -1*dir; if (av > bv) return 1*dir; return 0;',
+        '    });',
+        '    rows.forEach(function(tr){ tbody.appendChild(tr); });',
+        '    // Recalculate visible order to match the new DOM order',
+        '    visible = rows.filter(function(tr){ return tr.style.display !== "none"; });',
+        '    current = 0;',
+        '    renderPage();',
+        '    updatePager();',
+        '  }',
+        '  function applyFilter(){',
+        '    var term = (q && q.value || "").trim().toLowerCase();',
+        '    visible = [];',
+        '    rows.forEach(function(tr){',
+        '      ["title","kws","date"].forEach(function(c){ var cell = tr.querySelector("[data-col="+c+"]"); if (cell) unmark(cell); });',
+        '      var txt = tr.textContent.toLowerCase();',
+        '      var ok = !term || txt.indexOf(term) !== -1;',
+        '      tr.__match = ok;',
+        '      if (ok){',
+        '        visible.push(tr);',
+        '        if (term){',
+        '          highlight(tr.querySelector("[data-col=title]"), term);',
+        '          highlight(tr.querySelector("[data-col=kws]"), term);',
+        '        }',
+        '      }',
+        '    });',
+        '    current = 0;',
+        '    renderPage();',
+        '    updatePager();',
+        '  }',
+        '  function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }',
+        '  function totalPages(){ return Math.max(1, Math.ceil(visible.length / perPage)); }',
+        '  function renderPage(){',
+        '    var start = current * perPage;',
+        '    var end = start + perPage;',
+        '    rows.forEach(function(tr){ tr.style.display = "none"; });',
+        '    visible.forEach(function(tr, i){',
+        '      if (i >= start && i < end){ tr.style.display = ""; } else { tr.style.display = "none"; }',
+        '    });',
+        '    if (count) count.textContent = visible.length + " / " + rows.length;',
+        '  }',
+        '  function pageButton(num, active){',
+        '    return "<button class=\\"pg\\" data-page=\\""+num+"\\" "+(active?"disabled":"")+">"+(num+1)+"</button>";',
+        '  }',
+        '  function buildPages(){',
+        '    var tp = totalPages();',
+        '    var start = clamp(current-2, 0, Math.max(0, tp-5));',
+        '    var end = Math.min(tp, start+5);',
+        '    var html = [];',
+        '    if (start > 0){ html.push(pageButton(0, false)); if (start > 1) html.push("<span class=\\"badge\\">…</span>"); }',
+        '    for (var i=start;i<end;i++){ html.push(pageButton(i, i===current)); }',
+        '    if (end < tp){ if (end < tp-1) html.push("<span class=\\"badge\\">…</span>"); html.push(pageButton(tp-1, false)); }',
+        '    return html.join("");',
+        '  }',
+        '  function updatePager(){',
+        '    var tp = totalPages();',
+        '    pagers.forEach(function(pg){',
+        '      var prev = pg.querySelector(".prev");',
+        '      var next = pg.querySelector(".next");',
+        '      var pages = pg.querySelector(".pages");',
+        '      if (prev) prev.disabled = (current <= 0);',
+        '      if (next) next.disabled = (current >= tp-1);',
+        '      if (pages) pages.innerHTML = buildPages();',
+        '    });',
+        '  }',
+        '  document.addEventListener("click", function(e){',
+        '    var btn = e.target.closest(".pg"); if (!btn) return;',
+        '    var trgt = btn.getAttribute("data-page");',
+        '    if (trgt != null){',
+        '      current = clamp(parseInt(trgt,10)||0, 0, totalPages()-1);',
+        '      renderPage(); updatePager(); return;',
+        '    }',
+        '    if (btn.classList.contains("prev")){ current = clamp(current-1,0,totalPages()-1); renderPage(); updatePager(); return; }',
+        '    if (btn.classList.contains("next")){ current = clamp(current+1,0,totalPages()-1); renderPage(); updatePager(); return; }',
+        '  }, true);',
+        '  if (ppSel){ ppSel.addEventListener("change", function(){ perPage = parseInt(ppSel.value,10)||50; current = 0; renderPage(); updatePager(); }); }',
+        '  if (thead){',
+        '    thead.addEventListener("click", function(e){',
+        '      var th = e.target.closest("th"); if (!th) return;',
+        '      var type = th.getAttribute("data-sort"); if (!type) return;',
+        '      var idxMap = {"link":"link","date":"date","text":"title","num":"msgs"};',
+        '      var col = idxMap[type] || "title";',
+        '      // Perform sort first (this will flip sortState.dir if same col)',
+        '      sortBy(col, type);',
+        '      // Clear previous indicators',
+        '      Array.prototype.forEach.call(thead.querySelectorAll(\'th[data-sort]\'), function(h){',
+        '        h.classList.remove(\'sorted-asc\',\'sorted-desc\',\'active\');',
+        '      });',
+        '      // Set indicator on the clicked header based on current sort direction',
+        '      th.classList.add(\'active\');',
+        '      if (sortState.dir === 1){ th.classList.add(\'sorted-asc\'); }',
+        '      else { th.classList.add(\'sorted-desc\'); }',
+        '    });',
+        '  }',
+        '  // Copy link buttons (already handled by delegation above for .pg, do separate for .copy) ',
+        '  tbody.addEventListener("click", function(e){',
+        '    var btn = e.target.closest(".copy"); if (!btn) return;',
+        '    var href = btn.getAttribute("data-href"); if (!href) return;',
+        '    btn.setAttribute("aria-busy","true");',
+        '    navigator.clipboard.writeText(href).then(function(){',
+        '      btn.textContent = "✓"; setTimeout(function(){ btn.textContent = "🔗"; btn.removeAttribute("aria-busy"); }, 900);',
+        '    }).catch(function(){',
+        '      btn.textContent = "⚠"; setTimeout(function(){ btn.textContent = "🔗"; btn.removeAttribute("aria-busy"); }, 1200);',
+        '    });',
+        '  });',
+        '  // Sticky header shadow on scroll',
+        '  var wrap = document.querySelector(".table-wrap");',
+        '  window.addEventListener("scroll", function(){',
+        '    if (!wrap) return;',
+        '    var y = wrap.getBoundingClientRect().top;',
+        '    document.body.classList.toggle("thead-shadow", y < 0);',
+        '  });',
+        '  // Init',
+        '  applyFilter();',
+        '})();',
+        '</script>',
+        '</main>',
+        '</body></html>'
+    ])
 
     # --------------------------------------------------------------------------------------
     # Finalize the HTML index:
